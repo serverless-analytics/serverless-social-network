@@ -261,18 +261,19 @@ class SocialNetworkUser(HttpUser):
     global dbs
     host = APIHOST
     wait_time = between(1, 2.5)
+    n_users = 10
 
     # def wait_time(self):
     #     return np.random.exponential(scale=1)
     def on_start(self):
-        for i in range(1, 962):
+        for i in range(1, self.n_users):
             self.compose_post(i)
 
 
 
     @task(2)
     def compose_post(self, _id=None):
-        user_id = random.randint(1, 962) if not _id else _id 
+        user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
         text = ''.join(random.choices(
             string.ascii_letters + string.digits, k=100))
@@ -280,7 +281,7 @@ class SocialNetworkUser(HttpUser):
         user_mention_ids = list()
         for _ in range(num_user_mentions):
             while True:
-                user_mention_id = random.randint(1, 962)
+                user_mention_id = random.randint(1, self.n_users)
                 if user_mention_id != user_id and user_mention_id not in user_mention_ids:
                     user_mention_ids.append(user_mention_id)
                     break
@@ -291,7 +292,10 @@ class SocialNetworkUser(HttpUser):
         media_types = list()
         for _ in range(num_medias):
             media_ids.append(random.randint(1, sys.maxsize))
+            #if exists just skip 
             media_types.append('PIC')
+            # get media size
+            # create the random bytes write it to 
 
         action_name = 'compose_post'
         action_params = {
@@ -319,7 +323,7 @@ class SocialNetworkUser(HttpUser):
     @task(4)
     def read_home_timeline(self):
         action_name = 'read_home_timeline_pipeline'
-        user_id = random.randint(1, 962)
+        user_id = random.randint(1, self.n_users)
         start = random.randint(0, 100)
         stop = start + 10
         action_params = {
@@ -344,7 +348,7 @@ class SocialNetworkUser(HttpUser):
     @task(4)
     def read_user_timeline(self):
         action_name = 'read_user_timeline_pipeline'
-        user_id = random.randint(1, 962)
+        user_id = random.randint(1, self.n_users)
         start = random.randint(0, 100)
         stop = start + 10
         action_params = {
@@ -452,7 +456,7 @@ def main(run_locust_test=True):
         # start a WebUI instance
         external_ip = urllib.request.urlopen(
             'https://ident.me').read().decode('utf8')
-        env.create_web_ui(external_ip, 8089)
+        #env.create_web_ui(external_ip, 8089)
 
         # start a greenlet that periodically outputs the current stats
         gevent.spawn(stats_printer(env.stats))

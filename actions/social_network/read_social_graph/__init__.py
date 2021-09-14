@@ -3,14 +3,18 @@ from pymongo import MongoClient
 from actions.common.utils import get_timestamp_ms, invoke_action
 #from utils import get_timestamp_ms
 import logging
+from actions.common.lru import LruCache
+from actions.common.config import CACHE_SIZE 
 
 
 
+lru_cache = None
 mongo_client = None
 
 
 def main(args):
     global mongo_client
+    global lru_cache
     # -----------------------------------------------------------------------
     # Parse params
     # -----------------------------------------------------------------------
@@ -31,6 +35,9 @@ def main(args):
     # -----------------------------------------------------------------------
     # Action execution
     # -----------------------------------------------------------------------
+    if not lru_cache:
+        lru_cache = LruCache(capacity = CACHE_SIZE)
+    
     mongodb_ip_addr = dbs['social_graph_mongodb']['ip_addr']
     mongodb_port = dbs['social_graph_mongodb']['port']
     if mongo_client is None:
@@ -52,7 +59,11 @@ def main(args):
         home_timeline_ids.append(user_mention_id)
 
     # followers
-    cursor = social_graph_collection.find(filter={'followees': user_id})
+    cursor = lru_cache.get(user_id)
+    if cursor == -1: 
+        cursor = social_graph_collection.find(filter={'followees': user_id})
+        lru_cache.put(user_id, cursor)
+
     for doc in cursor:
         follower_id = doc['user_id']
         home_timeline_ids.append(follower_id)

@@ -1,8 +1,6 @@
 import logging
 import json
 
-from typing import final
-
 import azure.functions as func
 
 import actions.social_network.read_post as read_post

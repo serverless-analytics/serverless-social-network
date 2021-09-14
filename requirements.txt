@@ -31,3 +31,7 @@ redis
 cloudant
 
 aiohttp
+docker
+numpy
+pandas
+colorlog

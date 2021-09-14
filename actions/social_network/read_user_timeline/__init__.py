@@ -42,7 +42,7 @@ def main(args):
     if user_timeline is not None:
         for post in user_timeline['posts']:
             post_ids.append(post['post_id'])
-        if 0 <= start and start < stop:
+        if 0 <= start and start < stop and len(post_ids) >= stop:
             post_ids = post_ids[start:stop]
 
     # -----------------------------------------------------------------------

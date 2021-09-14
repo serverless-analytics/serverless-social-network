@@ -49,5 +49,4 @@ services:
 
 networks:
   serverless:
-    name: serverless
     driver: bridge 

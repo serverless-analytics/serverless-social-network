@@ -54,12 +54,6 @@ async def main(args):
     response_read = await invoke_action(action_name = 'read_post',
         params= {
             'read_post': response['read_post'],
-            #{
-            #    'user_id': user_id,
-            #    'post_ids': response['read_post']['post_ids'],
-            #    'timestamp': post_timestamp,
-            #    'dbs': dbs
-            #}
         },
         blocking = True,
         result=True)
