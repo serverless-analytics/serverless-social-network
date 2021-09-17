@@ -1,7 +1,8 @@
+import pymongo
 from pymongo import MongoClient
-
-from actions.common.utils import get_timestamp_ms, invoke_action
 import logging
+
+from actions.common.utils import get_timestamp_ms
 
 
 mongo_client = None
@@ -9,6 +10,8 @@ mongo_client = None
 
 def main(args):
     global mongo_client
+    
+
     # -----------------------------------------------------------------------
     # Parse params
     # -----------------------------------------------------------------------
@@ -18,44 +21,37 @@ def main(args):
         'minio_get_ms': 0,
         'minio_put_ms': 0
     }
+    
     timestamps['main_start_ms'] = get_timestamp_ms()
-    params = args #.get('read_user_timeline', args)
-    user_id = params['user_id']
-    start = params['start']
-    stop = params['stop']
+    params = args.get('store_post', args)
+    post = params['post']
     dbs = params['dbs']
 
     # -----------------------------------------------------------------------
     # Action execution
     # -----------------------------------------------------------------------
-    mongodb_ip_addr = dbs['user_timeline_mongodb']['ip_addr']
-    mongodb_port = dbs['user_timeline_mongodb']['port']
+    mongodb_ip_addr = dbs['post_storage_mongodb']['ip_addr']
+    mongodb_port = dbs['post_storage_mongodb']['port']
     if mongo_client is None:
         mongo_client = MongoClient(mongodb_ip_addr, mongodb_port)
 
-    user_timeline_db = mongo_client['user_timeline']
-    user_timeline_collection = user_timeline_db['user_timeline']
+    post_db = mongo_client['post']
+    post_collection = post_db['post']
+    post_collection.create_index([('post_id', pymongo.ASCENDING)],
+                                 name='post_id', unique=True)
+    post_collection.insert_one(post)
 
-    # cache the post ids 
-    user_timeline = user_timeline_collection.find_one(
-        filter={'user_id': user_id})
-    post_ids = list()
-    if user_timeline is not None:
-        for post in user_timeline['posts']:
-            post_ids.append(post['post_id'])
-        # sort the post according to ts and return the top x 
-        if 0 <= start and start < stop and len(post_ids) >= stop:
-            post_ids = post_ids[start:stop]
+    #result = post_collection.find_one()
+    #logging.error(f'store_post: find_one result is {result}')
 
+    #logging.critical("After store post read the post_db")
+    #for x in post_collection.find():
+    #    logging.critical(f'{x}')
     # -----------------------------------------------------------------------
     # Return results
     # -----------------------------------------------------------------------
     timestamps['main_end_ms'] = get_timestamp_ms()
     result = dict()
     result['timestamps'] = timestamps
-    result['read_post'] = {
-        'post_ids': post_ids,
-        'dbs': dbs
-    }
-    logging.warning(f'read_user_timeline: user_id={user_id}, result is {result}')
+    logging.error(f'store_post: post is {post}, result is {result}')
     return result

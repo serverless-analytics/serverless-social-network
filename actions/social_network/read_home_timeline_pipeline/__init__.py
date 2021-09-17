@@ -48,17 +48,33 @@ async def main(args):
         result = True)
 
 
-    #logging.critical(f'read_home_timeline_pipeline: read_home_timeline resoponse is {response}')
-    
+    # make this one parallel instead of one post per post id 
     post_timestamp = get_timestamp_ms()
-    response_read = await invoke_action(action_name = 'read_post',
-        params= {
-            'read_post': response['read_post'],
-        },
-        blocking = True,
-        result=True)
+    post_ids = response['read_post']['post_ids'] 
+    response_read = {'posts': []}
+    for post_id in post_ids:
+        res = await invoke_action(action_name = 'read_post',
+                params= {
+                    'read_post': {
+                        'user_id': user_id,
+                        'post_ids': [post_id],
+                        'timestamp': post_timestamp,
+                        'dbs': dbs
+                        }, #locality = postid, 3-->4 
+                    },
+                blocking = True,
+                poll_interval = 0.1,
+                result= True)
+        response_read['posts'].append(res)
+    
+    #post_timestamp = get_timestamp_ms()
+    #response_read = await invoke_action(action_name = 'read_post',
+    #    params= {
+    #        'read_post': response['read_post'],
+    #    },
+    #    blocking = True,
+    #    result=True)
 
-    #logging.critical(f'read_home_timeline_pipeline: read_post resoponse is {response_read}')
 
     # -----------------------------------------------------------------------
     # Return results

@@ -11,11 +11,13 @@ def init_config(config_path):
         'DB_USERNAME': 'whisk_admin',
         'DB_PASSWORD': 'some_passw0rd',
         'DB_PROTOCOL': 'http',
+        #'DB_HOST': 'rfonseca-dask.westus2.cloudapp.azure.com', #'172.17.0.1',
         'DB_HOST': '172.17.0.1',
         'DB_PORT': '5984'
     }
 
     config['MinIO'] = {
+        #'ENDPOINT': 'rfonseca-dask.westus2.cloudapp.azure.com', #socket.gethostname(), # + '.ece.cornell.edu:9001',
         'ENDPOINT': socket.gethostname(), # + '.ece.cornell.edu:9001',
         'BUCKET': 'playground',
         'ACCESS_KEY': '5VCTEQOQ0GR0NV1T67GN',
@@ -33,6 +35,7 @@ def init_config(config_path):
     config['OpenWhisk'] = {
         'WSK': WSK,
         'APIHOST': 'http://localhost:7071',  #APIHOST,
+        #'APIHOST': 'http://func-rfdask.westus2.cloudapp.azure.com:37000',
         'AUTH_KEY': '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP', #AUTH_KEY,
         'NAMESPACE': '_', #NAMESPACE,
     }

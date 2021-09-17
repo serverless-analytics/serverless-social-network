@@ -36,14 +36,14 @@ def main(args):
     user_timeline_db = mongo_client['user_timeline']
     user_timeline_collection = user_timeline_db['user_timeline']
 
-    # cache the post ids 
+    # we can cache it with ETAG --> implementation just cache the objtct 
     user_timeline = user_timeline_collection.find_one(
         filter={'user_id': user_id})
     post_ids = list()
     if user_timeline is not None:
         for post in user_timeline['posts']:
             post_ids.append(post['post_id'])
-        # sort the post according to ts and return the top x 
+        # sort posts accoriding to their ts and then show the top x 
         if 0 <= start and start < stop and len(post_ids) >= stop:
             post_ids = post_ids[start:stop]
 

@@ -47,6 +47,14 @@ def main(args):
         if post == -1: 
             post = post_collection.find_one(filter={'post_id': post_id})
             lru_cache.put(post_id, post)
+
+        #for media_id in post['medias']:
+        #    media = lru_cache.get(media_id)
+        #    if media == -1:
+        #        media = post_collection.find_one(filter={'media_id': media_id})
+
+
+
         post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')
         posts.append(post)
 

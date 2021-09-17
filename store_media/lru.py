@@ -25,8 +25,6 @@ class LruCache:
         # FIXME: for now I assume the value of each key
         # is python built in tpye. remember to fix the
         # size calculation. 
-        with open('cache-log.log', 'a') as fd:
-            fd.write(f'lru-put {key}, {value}\n')
         size = sys.getsizeof(value)
         if self.available < size:
             freed = self.evict(size - self.available)
@@ -38,10 +36,6 @@ class LruCache:
 
     def get(self, key):
         if key not in self.cache:
-            with open('cache-log.log', 'a') as fd:
-                fd.write(f'lru-get miss {key}\n')
             return -1; 
         self.cache.move_to_end(key)
-        with open('cache-log.log', 'a') as fd:
-            fd.write(f'lru-get hit {key}, {self.cache[key]}\n')
         return self.cache[key]

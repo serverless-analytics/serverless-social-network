@@ -1,0 +1,3 @@
+cluster-members: local-membership.json
+n-workers: 5
+policy: crr # consistent round robin

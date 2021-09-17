@@ -45,6 +45,7 @@ dbs = None
 def get_mongodb_port_by_container_name(container_name):
     docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock')
     container = docker_client.containers.get(container_name)
+    print(container)
     port = int(container.attrs['NetworkSettings']
                ['Ports']['27017/tcp'][0]['HostPort'])
     return port
@@ -135,7 +136,7 @@ def init_mongodb(drop_all_dbs=True, except_social_graph=False):
 
     logger.info('init mongodb')
     #host_ip_addr = socket.gethostname() + '.ece.cornell.edu'
-    host_ip_addr = socket.gethostname()
+    host_ip_addr = socket.gethostname() # Mania: this should be changed to Rodrigo's address 
 
     post_storage_mongodb_ip_addr = host_ip_addr
     post_storage_mongodb_port = get_mongodb_port_by_container_name(
@@ -257,16 +258,36 @@ def init_social_graph(social_graph_path):
     logger.info('finish uploading social graph')
 
 
+
+def load_image_sizes():
+    sizes = []
+    fname = 'facebook.2.image.sizes' 
+    with open(fname, 'r') as fd:
+        data = [int(s) for s in fd.read().split('\n')[:-1]]
+        sizes.extend(data)
+    
+    fname = 'instagram.image.sizes.clean' 
+    with open(fname, 'r') as fd:
+        data = [int(s) for s in fd.read().split('\n')[:-1]]
+        sizes.extend(data)
+    return sizes
+
+
 class SocialNetworkUser(HttpUser):
     global dbs
     host = APIHOST
     wait_time = between(1, 2.5)
     n_users = 10
-
+    medias = set()
+    sizes = []
     # def wait_time(self):
     #     return np.random.exponential(scale=1)
+
+
     def on_start(self):
+        self.sizes = self.load_image_sizes()
         for i in range(1, self.n_users):
+            # generate 100 posts for each user. 
             self.compose_post(i)
 
 
@@ -276,7 +297,7 @@ class SocialNetworkUser(HttpUser):
         user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
         text = ''.join(random.choices(
-            string.ascii_letters + string.digits, k=100))
+            string.ascii_letters + string.digits, k=1024))
         num_user_mentions = random.randint(0, 3)
         user_mention_ids = list()
         for _ in range(num_user_mentions):
@@ -285,17 +306,28 @@ class SocialNetworkUser(HttpUser):
                 if user_mention_id != user_id and user_mention_id not in user_mention_ids:
                     user_mention_ids.append(user_mention_id)
                     break
+
         for user_mention_id in user_mention_ids:
             text = text + ' @username_' + str(user_mention_id)
         num_medias = random.randint(0, 5)
         media_ids = list()
         media_types = list()
+        media_sizes = list()
+        media_contents = list()
         for _ in range(num_medias):
-            media_ids.append(random.randint(1, sys.maxsize))
-            #if exists just skip 
+            while True:
+                media_id = random.randint(1, sys.maxsize)
+                if media_id not in self.medias:
+                    self.medias.add(media_id)
+                    break
+
+            m_size = random.choice(self.sizes)
+            media_ids.append(media_id)
             media_types.append('PIC')
-            # get media size
-            # create the random bytes write it to 
+            media_sizes.append(m_size)
+            media_contents.append(''.join(random.choices(
+                string.ascii_letters + string.digits, k=m_size)))
+
 
         action_name = 'compose_post'
         action_params = {
@@ -305,6 +337,8 @@ class SocialNetworkUser(HttpUser):
                 'text': text,
                 'media_ids': media_ids,
                 'media_types': media_types,
+                'media_sizes': media_sizes,
+                'media_contents': media_contents,
                 'post_type': 'POST',
                 'dbs': dbs
             }
@@ -368,6 +402,63 @@ class SocialNetworkUser(HttpUser):
                          verify=False,
                          name=action_name)
 
+_medias = set()
+
+def compose_post(_id=None, n_users=100):
+    global _medias
+    user_id = random.randint(1, n_users) if not _id else _id 
+    username = 'username_' + str(user_id)
+    text = ''.join(random.choices(
+        string.ascii_letters + string.digits, k=1024))
+    num_user_mentions = random.randint(0, 3)
+    user_mention_ids = list()
+    for _ in range(num_user_mentions):
+        while True:
+            user_mention_id = random.randint(1, n_users)
+            if user_mention_id != user_id and user_mention_id not in user_mention_ids:
+                user_mention_ids.append(user_mention_id)
+                break
+
+    for user_mention_id in user_mention_ids:
+        text = text + ' @username_' + str(user_mention_id)
+    num_medias = random.randint(0, 5)
+    media_ids = list()
+    media_types = list()
+    media_sizes = list()
+    media_contents = list()
+    for _ in range(num_medias):
+        while True:
+            media_id = random.randint(1, sys.maxsize)
+            if media_id not in _medias:
+                _medias.add(media_id)
+                break
+
+        m_size = random.choice(sizes)
+        media_ids.append(media_id)
+        media_types.append('PIC')
+        media_sizes.append(m_size)
+        media_contents.append(''.join(random.choices(
+            string.ascii_letters + string.digits, k=m_size)))
+
+
+    action_name = 'compose_post'
+    action_params = {
+        'compose_post': {
+            'username': username,
+            'user_id': user_id,
+            'text': text,
+            'media_ids': media_ids,
+            'media_types': media_types,
+            'media_sizes': media_sizes,
+            'media_contents': media_contents,
+            'post_type': 'POST',
+            'dbs': dbs
+        }
+    }
+    res = invoke_action(action_name='compose_post',
+            params=action_params, blocking=True, result=True)
+
+sizes = load_image_sizes() 
 
 def main(run_locust_test=True):
     global logger
@@ -439,10 +530,21 @@ def main(run_locust_test=True):
         follow(4, 1)
         follow(5, 1)
 
+    #-----------------------------------------------------------------------
+    # preload database
+    #-----------------------------------------------------------------------
+
     # -----------------------------------------------------------------------
     # Invoke actions
     # -----------------------------------------------------------------------
-    if run_locust_test:
+    
+    load_database = True
+    if load_database:
+        n_users = 962
+        for i in range(0, n_users):
+            for _ in range(0, 100):
+                compose_post(i, n_users)
+    elif run_locust_test:
         logger.info('locust load testing starts')
 
         setup_logging('INFO', None)

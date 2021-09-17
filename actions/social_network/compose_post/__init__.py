@@ -32,6 +32,8 @@ async def main(args):
     text = params['text']
     media_ids = params['media_ids']
     media_types = params['media_types']
+    media_size = params['media_sizes']
+    media_content = params['media_contents']
     post_type = params['post_type']
     dbs = params['dbs']
 
@@ -49,7 +51,9 @@ async def main(args):
     for i in range(len(media_ids)):
         medias.append({
             'media_id': media_ids[i],
-            'media_type': media_types[i]
+            'media_type': media_types[i],
+            'media_size': media_size[i],
+            'media_content': media_content[i]
         })
     post = {
         'post_id': post_id,
