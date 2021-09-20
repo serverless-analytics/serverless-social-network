@@ -2,15 +2,16 @@ from pymongo import MongoClient
 from actions.common.utils import get_timestamp_ms
 from actions.common.lru import LruCache
 from actions.common.config import CACHE_SIZE 
+import logging
+
 
 mongo_client = None
 lru_cache = None
 
 
-def main(args):
+def main(args, worker=None):
     global mongo_client
     global lru_cache
-
 
     # -----------------------------------------------------------------------
     # Parse params
@@ -30,7 +31,7 @@ def main(args):
     # Action execution
     # -----------------------------------------------------------------------
     if not lru_cache:
-        lru_cache = LruCache(capacity = CACHE_SIZE)
+        lru_cache = LruCache(capacity = CACHE_SIZE, name=f'{worker.replace(":", "_")}.post_media_cache')
 
 
     mongodb_ip_addr = dbs['post_storage_mongodb']['ip_addr']
@@ -41,18 +42,27 @@ def main(args):
     post_db = mongo_client['post']
     post_collection = post_db['post']
 
+    media_db = mongo_client['media']
+    media_collection = media_db['media']
+
+
     posts = list()
+
     for post_id in post_ids:
         post = lru_cache.get(post_id)
         if post == -1: 
             post = post_collection.find_one(filter={'post_id': post_id})
             lru_cache.put(post_id, post)
 
-        #for media_id in post['medias']:
-        #    media = lru_cache.get(media_id)
-        #    if media == -1:
-        #        media = post_collection.find_one(filter={'media_id': media_id})
-
+        medias = list()
+        for media_id in post['media_ids']:
+            media = lru_cache.get(media_id)
+            if media == -1:
+                media = media_collection.find_one(filter={'media_id': media_id})
+                lru_cache.put(media_id, media)
+            media.pop('_id', None)
+            medias.append(media)
+        post['medias'] = medias
 
 
         post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')

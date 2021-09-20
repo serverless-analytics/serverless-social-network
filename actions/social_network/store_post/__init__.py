@@ -41,6 +41,7 @@ def main(args):
                                  name='post_id', unique=True)
     post_collection.insert_one(post)
 
+    logging.critical(f'********************************************** {mongo_client}')
     #result = post_collection.find_one()
     #logging.error(f'store_post: find_one result is {result}')
 

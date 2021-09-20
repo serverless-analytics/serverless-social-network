@@ -45,9 +45,11 @@ async def main(args):
                 'post_id': post_id,
                 'post_timestamp': post_timestamp,
                 'user_mention_names': user_mention_names,
-                'dbs': dbs
+                'dbs': dbs,
+                'locality': user_id
             }
         },
+        locality = user_id,
         blocking = True,
         poll_interval = 0.1,
         result=True)

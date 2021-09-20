@@ -12,7 +12,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except ValueError:
         raise NameError('This is the error you should catch')
     finally:
-            result = read_post.main(params) if params else None
+        result = read_post.main(params, worker=req.url.replace('http://', '').split('/', 1)[0]) if params else None
 
     return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
     

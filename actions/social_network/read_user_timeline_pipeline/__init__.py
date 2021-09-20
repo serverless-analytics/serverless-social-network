@@ -63,6 +63,7 @@ async def main(args):
                         'dbs': dbs
                         }, #locality = postid, 3-->4 
                     },
+                locality = post_id,
                 blocking = True,
                 poll_interval = 0.1,
                 result= True)
@@ -77,5 +78,5 @@ async def main(args):
     result['timestamps'] = timestamps
     result['post_id'] = response['read_post']['post_ids']
     result['posts'] = response_read['posts']
-    logging.warning(f'read_user_timeline_pipeline: user_id={user_id}, result is {result}')
+    logging.warning(f'read_user_timeline_pipeline: user_id={user_id}, result is {result["post_id"]}')
     return result

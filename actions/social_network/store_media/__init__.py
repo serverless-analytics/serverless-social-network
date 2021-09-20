@@ -35,8 +35,8 @@ def main(args):
     if mongo_client is None:
         mongo_client = MongoClient(mongodb_ip_addr, mongodb_port)
 
-    post_db = mongo_client['post']
-    post_collection = post_db['post']
+    post_db = mongo_client['media']
+    post_collection = post_db['media']
     post_collection.create_index([('media_id', pymongo.ASCENDING)],
                                  name='media_id', unique=True)
     post_collection.insert_one(media)
@@ -53,5 +53,5 @@ def main(args):
     timestamps['main_end_ms'] = get_timestamp_ms()
     result = dict()
     result['timestamps'] = timestamps
-    logging.error(f'store_media: with id {media["media_id"]}, side: {media["media_size"]}')
+    logging.error(f'store_media: with id {media["media_id"]}, size: {media["media_size"]}')
     return result

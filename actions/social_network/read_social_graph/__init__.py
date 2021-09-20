@@ -7,12 +7,11 @@ from actions.common.lru import LruCache
 from actions.common.config import CACHE_SIZE 
 
 
-
 lru_cache = None
 mongo_client = None
 
 
-def main(args):
+def main(args, worker=None):
     global mongo_client
     global lru_cache
     # -----------------------------------------------------------------------
@@ -36,7 +35,8 @@ def main(args):
     # Action execution
     # -----------------------------------------------------------------------
     if not lru_cache:
-        lru_cache = LruCache(capacity = CACHE_SIZE)
+        lru_cache = LruCache(capacity = CACHE_SIZE, name=f'{worker.replace(":", "_")}.social_graph')
+
     
     mongodb_ip_addr = dbs['social_graph_mongodb']['ip_addr']
     mongodb_port = dbs['social_graph_mongodb']['port']
@@ -49,6 +49,8 @@ def main(args):
     social_graph_collection = social_graph_db['social_graph']
 
     home_timeline_ids = list()
+    
+    
     # mentioned users
     for user_mention_name in user_mention_names:
         doc = user_collection.find_one(filter={'username': user_mention_name})

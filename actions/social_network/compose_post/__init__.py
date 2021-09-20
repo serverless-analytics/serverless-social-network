@@ -53,27 +53,23 @@ async def main(args):
             'media_id': media_ids[i],
             'media_type': media_types[i],
             'media_size': media_size[i],
-            'media_content': media_content[i]
+            #'media_content': media_content[i]
         })
+
     post = {
         'post_id': post_id,
         'author': author,
         'text': text,
+        'media_ids': media_ids,
         'medias': medias,
         'timestamp': post_timestamp,
         'post_type': post_type
     }
 
-    logging.critical(f'composet_post: user = {user_id}, post = {post}')
 
     # parse user mentions
     user_mention_names = [username[1:]
                           for username in re.findall('@[a-zA-Z0-9-_]+', text)]
-
-    # couchdb_client = CouchDB(user='whisk_admin',
-    #                          auth_token=DB_PASSWORD,
-    #                          url=DB_PROTOCOL + '://' + DB_HOST + ':' + DB_PORT,
-    #                          connect=True)
 
     response = await invoke_action(action_name = 'store_post',
             params = {
@@ -85,6 +81,29 @@ async def main(args):
             blocking = True,
             poll_interval = 0.1)
 
+    
+    for i in range(len(media_ids)):
+        media = {
+                'media_id': media_ids[i],
+                'media_type': media_types[i],
+                'media_size': media_size[i],
+                'media_content': media_content[i],
+                'post_id': post_id,
+                'author': author,
+                'timestamp': post_timestamp,
+                'post_type': post_type}
+        
+        response = await invoke_action(action_name = 'store_media',
+                params = {
+                    'store_media': {
+                        'media': media,
+                        'dbs': dbs
+                        }
+                    },
+                blocking = True,
+                poll_interval = 0.1)
+    
+    logging.critical(f'composet_post: user = {user_id}, post = {post}')
 
     response = await invoke_action(action_name = 'write_user_timeline',
         params= {
@@ -122,4 +141,5 @@ async def main(args):
     result['timestamps'] = timestamps
     result['post_id'] = post_id
     result['user_mention_names'] = user_mention_names
+    result['post_timestamp'] = post_timestamp
     return result

@@ -31,6 +31,8 @@ from utils.docker_image import docker_image_build, docker_image_push
 from utils.init_config import init_config
 from utils.logger import get_logger
 
+import json
+
 # -----------------------------------------------------------------------
 # Global variables
 # -----------------------------------------------------------------------
@@ -45,7 +47,6 @@ dbs = None
 def get_mongodb_port_by_container_name(container_name):
     docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock')
     container = docker_client.containers.get(container_name)
-    print(container)
     port = int(container.attrs['NetworkSettings']
                ['Ports']['27017/tcp'][0]['HostPort'])
     return port
@@ -164,6 +165,7 @@ def init_mongodb(drop_all_dbs=True, except_social_graph=False):
 
     if drop_all_dbs:
         post_storage_client.drop_database('post')
+        post_storage_client.drop_database('media')
         if not except_social_graph:
             social_graph_client.drop_database('social_graph')
         social_graph_client.drop_database('user')
@@ -275,20 +277,27 @@ def load_image_sizes():
 
 class SocialNetworkUser(HttpUser):
     global dbs
+    global logger
     host = APIHOST
     wait_time = between(1, 2.5)
-    n_users = 10
+    n_users = 20 # 962
     medias = set()
     sizes = []
-    # def wait_time(self):
-    #     return np.random.exponential(scale=1)
+    trace = []
 
 
     def on_start(self):
-        self.sizes = self.load_image_sizes()
+        self.sizes = load_image_sizes()
         for i in range(1, self.n_users):
             # generate 100 posts for each user. 
             self.compose_post(i)
+
+
+
+    def on_stop(self):
+        with open('trace.json', 'w') as fd:
+            json.dump(self.trace, fd)
+
 
 
 
@@ -297,7 +306,7 @@ class SocialNetworkUser(HttpUser):
         user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
         text = ''.join(random.choices(
-            string.ascii_letters + string.digits, k=1024))
+            string.ascii_letters + string.digits, k=random.randint(64, 1024)))
         num_user_mentions = random.randint(0, 3)
         user_mention_ids = list()
         for _ in range(num_user_mentions):
@@ -316,6 +325,7 @@ class SocialNetworkUser(HttpUser):
         media_contents = list()
         for _ in range(num_medias):
             while True:
+                # check if the media id is ever repeated 
                 media_id = random.randint(1, sys.maxsize)
                 if media_id not in self.medias:
                     self.medias.add(media_id)
@@ -343,14 +353,31 @@ class SocialNetworkUser(HttpUser):
                 'dbs': dbs
             }
         }
-        url_params = {'blocking': 'true', 'result': 'false'}
-        #self.client.post(url='/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
-        self.client.post(url='/api/' + action_name,
+
+        url_params = {'blocking': 'true', 'result': 'true'}
+        result = self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
+        logger.info(f'Compose post result is {result.json()}')
+
+        res = result.json()
+
+        self.trace.append({
+            'compose_post': {
+                'username': username,
+                'user_id': user_id,
+                'text_size': len(text),
+                'media_ids': media_ids,
+                'media_types': media_types,
+                'media_sizes': media_sizes,
+                'post_type': 'POST',
+                'timestamp': res['post_timestamp'],
+                'user_mention_ids': user_mention_ids,
+                'post_id': res['post_id']}})
+        return
 
 
 
@@ -368,14 +395,21 @@ class SocialNetworkUser(HttpUser):
                 'dbs': dbs
             }
         }
-        url_params = {'blocking': 'true', 'result': 'false'}
-        #self.client.post(url='/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
+        url_params = {'blocking': 'true', 'result': 'true'}
         self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
+
+
+        self.trace.append({'read_home_timeline_pipeline': {
+                'user_id': user_id,
+                'start': start,
+                'stop': stop}})
+
+        return
 
 
 
@@ -394,22 +428,118 @@ class SocialNetworkUser(HttpUser):
             }
         }
         url_params = {'blocking': 'true', 'result': 'false'}
-        #self.client.post(url='/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
         self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
+        
+        self.trace.append({'read_user_timeline_pipeline': {
+                'user_id': user_id,
+                'start': start,
+                'stop': stop}})
+
+        return
+
+
 
 _medias = set()
+
+
+def replay_compose_post(request):
+    global _medias
+    global dbs
+    user_id = request['user_id']
+    username = 'username_' + str(user_id)
+    text = ''.join(random.choices(
+        string.ascii_letters + string.digits, k=request['text_size']))
+    num_user_mentions = len(request['user_mention_ids'])
+    user_mention_ids = request['user_mention_ids']
+
+    for user_mention_id in user_mention_ids:
+        text = text + ' @username_' + str(user_mention_id)
+    num_medias = len(request['media_ids'])
+    media_ids = list()
+    media_types = list()
+    media_sizes = list()
+    media_contents = list()
+    for i in range(num_medias):
+        while True:
+            media_id = random.randint(1, sys.maxsize)
+            if media_id not in _medias:
+                _medias.add(media_id)
+                break
+
+        m_size = request['media_sizes'][i]
+        media_ids.append(media_id)
+        media_types.append('PIC')
+        media_sizes.append(m_size)
+        media_contents.append(''.join(random.choices(
+            string.ascii_letters + string.digits, k=m_size)))
+
+
+    action_name = 'compose_post'
+    action_params = {
+        'compose_post': {
+            'username': username,
+            'user_id': user_id,
+            'text': text,
+            'media_ids': media_ids,
+            'media_types': media_types,
+            'media_sizes': media_sizes,
+            'media_contents': media_contents,
+            'post_type': 'POST',
+            'dbs': dbs
+        }
+    }
+    res = invoke_action(action_name='compose_post',
+            params=action_params, blocking=True, result=True)
+    pass
+
+
+def replay_read_home_timeline(request):
+    global dbs
+    user_id = request['user_id']
+    start = request['start']
+    stop = request['stop']
+    action_params = {
+        'read_home_timeline': {
+            'user_id': user_id,
+            'start': start,
+            'stop': stop,
+            'dbs': dbs
+        }
+    }
+    res = invoke_action(action_name='read_home_timeline_pipeline',
+            params=action_params, blocking=True, result=True)
+    pass
+
+
+def replay_read_user_timeline(request):
+    global dbs
+    user_id = request['user_id']
+    start = request['start']
+    stop = request['stop']
+    action_params = {
+        'read_home_timeline': {
+            'user_id': user_id,
+            'start': start,
+            'stop': stop,
+            'dbs': dbs
+        }
+    }
+    res = invoke_action(action_name='read_user_timeline_pipeline',
+            params=action_params, blocking=True, result=True)
+    pass
+
 
 def compose_post(_id=None, n_users=100):
     global _medias
     user_id = random.randint(1, n_users) if not _id else _id 
     username = 'username_' + str(user_id)
     text = ''.join(random.choices(
-        string.ascii_letters + string.digits, k=1024))
+        string.ascii_letters + string.digits, k=random.randint(64, 1024)))
     num_user_mentions = random.randint(0, 3)
     user_mention_ids = list()
     for _ in range(num_user_mentions):
@@ -538,12 +668,24 @@ def main(run_locust_test=True):
     # Invoke actions
     # -----------------------------------------------------------------------
     
-    load_database = True
+    load_database = False
+    replay_trace = True
     if load_database:
-        n_users = 962
+        n_users = 10 #962
         for i in range(0, n_users):
-            for _ in range(0, 100):
+            for _ in range(0, 1):
                 compose_post(i, n_users)
+    elif replay_trace:
+        with open('trace.json', 'r') as fd:
+            traces = json.load(fd)
+            #print(json.dumps(data, indent=4))
+            for tr in traces:
+                if 'compose_post' in tr:
+                    replay_compose_post(tr['compose_post'])
+                elif 'read_home_timeline_pipeline' in tr:
+                    replay_read_home_timeline(tr['read_home_timeline_pipeline'])
+                elif 'read_user_timeline_pipeline' in tr:
+                    replay_read_user_timeline(tr['read_user_timeline_pipeline'])
     elif run_locust_test:
         logger.info('locust load testing starts')
 
@@ -567,7 +709,7 @@ def main(run_locust_test=True):
         env.runner.start(user_count=1, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(240, lambda: env.runner.quit())
+        gevent.spawn_later(600, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()

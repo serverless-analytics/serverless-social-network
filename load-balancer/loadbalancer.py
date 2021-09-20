@@ -6,6 +6,8 @@ from consistent_hash import ConsistentHash
 from crr import ColorRoundRobin
 
 from flask import Flask,request,redirect,Response
+from colorama import Fore, Style
+
 
 app = Flask(__name__)
 azure_func_host = 'http://localhost:5000'
@@ -70,6 +72,7 @@ def init_config(args):
     global servers; 
     global server_names;
     global ch_ring
+    global crr_ring
     def get_servers(args):
         import json
         with open(args.cluster_members, 'r') as fd:
@@ -103,7 +106,6 @@ def select_server(policy, locality=None):
 
 def distribute_load(params):
     global args
-    print(f'inside ditribute_load {args}')
     for p in params:
         if p[0] == 'locality':
             return select_server(args.policy, locality=p[1])
@@ -123,8 +125,7 @@ def proxy(path):
     
     headers = [(name, value) for (name, value) in request.headers.items()]
     params = [(name, value) for (name, value) in request.args.items()]
-    print(f'params is {params}')
-
+    print(f'{Fore.GREEN} path: {path}, params: {params}, headers: {headers} {Style.RESET_ALL}')
     azure_func_host = distribute_load(params)
     
     if request.method=='GET':
@@ -154,5 +155,4 @@ if __name__ == '__main__':
     if args.config:
         args = parse_configs(args)
     init_config(args)
-    print(args, servers)
-    app.run(debug = False,port=7071)
+    app.run(debug = True,port=7071)

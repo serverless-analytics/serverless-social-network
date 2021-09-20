@@ -120,12 +120,14 @@ def _get_activation_by_id(activation_id):
     return activations[0]
 
 
-async def invoke_action(action_name, params, blocking=False, result=False, poll_interval=1):
+async def invoke_action(action_name, params, locality = None, blocking=False, result=False, poll_interval=1):
     if not blocking and result:
         raise Exception('result cannot be true when blocking is false')
     url_params = dict()
     url_params['blocking'] = str(blocking).lower()
     url_params['result'] = str(result).lower()
+    if locality:
+        url_params['locality'] = str(locality).lower()
 
     async with aiohttp.ClientSession() as client:
         async with client.post(url=APIHOST + '/api/' + action_name,

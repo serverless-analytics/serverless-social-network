@@ -59,10 +59,12 @@ async def main(args):
                         'user_id': user_id,
                         'post_ids': [post_id],
                         'timestamp': post_timestamp,
-                        'dbs': dbs
-                        }, #locality = postid, 3-->4 
+                        'dbs': dbs,
+                        'locality': post_id
+                        },
                     },
                 blocking = True,
+                locality = post_id,
                 poll_interval = 0.1,
                 result= True)
         response_read['posts'].append(res)
@@ -84,5 +86,5 @@ async def main(args):
     result['timestamps'] = timestamps
     result['post_id'] = response['read_post']['post_ids']
     result['posts'] = response_read['posts']
-    logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result}')
+    logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result["post_id"]}')
     return result
