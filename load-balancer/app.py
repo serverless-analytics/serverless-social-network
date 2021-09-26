@@ -77,27 +77,6 @@ def parse_configs(args):
 
 
 async def handle_get(request, host):
-    print(f'request {request}, {host}, {request.path}')
-    resp = requests.get(f'{host}/{request.path}')
-
-
-    #resp = requests.get(f'http://google.com')
-    #resp = requests.get(f'{host}/home')
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in  resp.raw.headers.items() if name.lower() not in excluded_headers]
-    response = Response(resp.content, resp.status_code, headers)
-    return response
-
-async def handle_put(request, host):
-    print(f'request {request}, {host}, {request.path}')
-    resp = requests.put(f'{host}/{request.path}',json=request.get_json())
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
-    response = Response(resp.content, resp.status_code, headers)
-    return response
-
-
-async def handle_post(request, host):
     params = await request.json()
     url_params =dict(request.query) 
     print(f'inside handle_post request {host}/{request.path},\n headers \
@@ -105,17 +84,41 @@ async def handle_post(request, host):
             json is {params.keys()}')
    
     async with aiohttp.ClientSession() as session:
+        async with session.get(f'{host}{request.path}', 
+                json=params,
+                params = url_params) as resp:
+            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            return web.Response(text = (await resp.text()))
+
+
+async def handle_put(request, host):
+    params = await request.json()
+    url_params =dict(request.query) 
+    print(f'inside handle_post request {host}/{request.path},\n headers \
+            {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
+            json is {params.keys()}')
+   
+    async with aiohttp.ClientSession() as session:
+        async with session.put(f'{host}{request.path}', 
+                json=params,
+                params = url_params) as resp:
+            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            return web.Response(text = (await resp.text()))
+
+
+async def handle_post(request, host):
+    params = await request.json()
+    url_params =dict(request.query) 
+    print(f'POST request {host}/{request.path},\n headers \
+            {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
+            json is {params.keys()}')
+   
+    async with aiohttp.ClientSession() as session:
         async with session.post(f'{host}{request.path}', 
                 json=params,
                 params = url_params) as resp:
-            print(f'status is {resp.status}')
-            print(await resp.text())
+            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
             return web.Response(text = (await resp.text()))
-
-    #excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    #headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
-    #response = Response(resp.content, resp.status_code, headers)
-    #return response
 
 
 async def handle(request):
@@ -123,7 +126,8 @@ async def handle(request):
     text = "Hello, " + name
     return web.Response(text=text)
 
-app = web.Application()
+
+app = web.Application(client_max_size=1024**3)
 if __name__ == '__main__':
     args = get_args()
     if args.config:

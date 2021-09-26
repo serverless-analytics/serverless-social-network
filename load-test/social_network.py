@@ -32,7 +32,7 @@ from utils.init_config import init_config
 from utils.logger import get_logger
 
 import json
-
+import ast
 # -----------------------------------------------------------------------
 # Global variables
 # -----------------------------------------------------------------------
@@ -299,7 +299,7 @@ class SocialNetworkUser(HttpUser):
             json.dump(self.trace, fd)
 
 
-    @task(0)
+    @task(2)
     def compose_post(self, _id=None):
         user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
@@ -359,9 +359,12 @@ class SocialNetworkUser(HttpUser):
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
-        logger.info(f'Compose post result is {result.json()}')
+        logger.info(f'Compose post result is {result.text}')
 
-        res = result.json()
+        try:
+            res = result.json()
+        except: 
+            res = ast.literal_eval(result.text)
 
         self.trace.append({
             'compose_post': {
@@ -379,7 +382,7 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    @task(5)
+    @task(4)
     def read_home_timeline(self):
         action_name = 'read_home_timeline_pipeline'
         user_id = random.randint(1, self.n_users)
@@ -411,7 +414,7 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    @task(5)
+    @task(4)
     def read_user_timeline(self):
         action_name = 'read_user_timeline_pipeline'
         user_id = random.randint(1, self.n_users)
@@ -696,7 +699,7 @@ def main(run_locust_test=True):
     # Invoke actions
     # -----------------------------------------------------------------------
     
-    load_database = True
+    load_database = False
     replay_trace = False
     if load_database:
         n_users = 10
@@ -741,7 +744,7 @@ def main(run_locust_test=True):
         env.runner.start(user_count=1, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(3600, lambda: env.runner.quit())
+        gevent.spawn_later(600, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()

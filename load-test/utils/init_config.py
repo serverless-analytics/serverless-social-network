@@ -34,7 +34,7 @@ def init_config(config_path):
 
     config['OpenWhisk'] = {
         'WSK': WSK,
-        'APIHOST': 'http://localhost:7072',  #APIHOST,
+        'APIHOST': 'http://localhost:7071',  #APIHOST,
         #'APIHOST': 'http://func-rfdask.westus2.cloudapp.azure.com:37000',
         'AUTH_KEY': '23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP', #AUTH_KEY,
         'NAMESPACE': '_', #NAMESPACE,
