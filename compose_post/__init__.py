@@ -7,6 +7,7 @@ import actions.social_network.compose_post as compose_post
 
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a request.')
     try:
         req_body = req.get_json()
         params = req_body.get('compose_post')

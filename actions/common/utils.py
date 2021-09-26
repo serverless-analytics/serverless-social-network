@@ -134,13 +134,14 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                              json=params,
                              params=url_params) as response: 
                              #auth=(USER_PASS[0], USER_PASS[1]), verify=False) as response:
-            if result:
-                return json.loads(await response.text())
-            else:
-                resp = json.loads(await response.text())
-            
-                activation_id = resp['activationId'] if 'activationId' in resp else 0
-                if blocking and 'reponse' not in resp:
-                    while get_activation_by_id(activation_id=activation_id) is None:
-                        time.sleep(poll_interval)
-                return activation_id
+            return json.loads(await response.text())
+            #if result:
+            #    return json.loads(await response.text())
+            #else:
+            #    resp = json.loads(await response.text())
+            # 
+            #    activation_id = resp['activationId'] if 'activationId' in resp else 0
+            #    if blocking and 'reponse' not in resp:
+            #        while get_activation_by_id(activation_id=activation_id) is None:
+            #            time.sleep(poll_interval)
+            #    return activation_id

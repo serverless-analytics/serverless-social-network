@@ -59,15 +59,6 @@ async def main(args):
     logging.warning(f'read_social_graph response is {response}')
     response_write = await invoke_action(action_name = 'write_home_timeline',
         params= response,
-        #{
-        #    'write_home_timeline': {
-        #        'user_id': user_id,
-        #        'post_id': post_id,
-        #        'post_timestamp': post_timestamp,
-        #        'home_timeline_ids': home_timeline_ids,
-        #        'dbs': dbs
-        #    }
-        #},
         blocking = True,
         poll_interval = 0.1)
 

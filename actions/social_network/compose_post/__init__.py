@@ -79,7 +79,10 @@ async def main(args):
                 }
             },
             blocking = True,
+            result=True,
             poll_interval = 0.1)
+
+
 
     
     for i in range(len(media_ids)):
@@ -101,6 +104,7 @@ async def main(args):
                         }
                     },
                 blocking = True,
+                result = True,
                 poll_interval = 0.1)
     
     logging.critical(f'composet_post: user = {user_id}, post = {post}')
@@ -115,21 +119,22 @@ async def main(args):
             }
         },
         blocking = True,
+        result = True,
         poll_interval = 0.1)
-
-
-    response = await invoke_action(action_name = 'write_home_timeline_pipeline',
-        params= {
-            'read_social_graph': {
-                'user_id': user_id,
-                'post_id': post_id,
-                'post_timestamp': post_timestamp,
-                'user_mention_names': user_mention_names,
-                'dbs': dbs
-            }
-        },
-        blocking = True,
-        poll_interval = 0.1)
+#
+#
+#    response = await invoke_action(action_name = 'write_home_timeline_pipeline',
+#        params= {
+#            'read_social_graph': {
+#                'user_id': user_id,
+#                'post_id': post_id,
+#                'post_timestamp': post_timestamp,
+#                'user_mention_names': user_mention_names,
+#                'dbs': dbs
+#            }
+#        },
+#        blocking = True,
+#        poll_interval = 0.1)
 
 
 

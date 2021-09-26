@@ -9,7 +9,7 @@ import requests
 from cloudant.client import CouchDB
 from PIL import Image
 
-from config import (ACCESS_KEY, APIHOST, AUTH_KEY, BUCKET, DB_HOST,
+from actions.common.config import (ACCESS_KEY, APIHOST, AUTH_KEY, BUCKET, DB_HOST,
                     DB_PASSWORD, DB_PORT, DB_PROTOCOL, DB_USERNAME, ENDPOINT,
                     NAMESPACE, SECRET_KEY, USER_PASS, WSK)
 

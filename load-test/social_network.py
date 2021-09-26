@@ -54,7 +54,6 @@ def get_mongodb_port_by_container_name(container_name):
 
 def init_logger():
     global logger
-
     log_file_path = Path(__file__).parent.absolute() / \
         'logs' / (Path(__file__).stem + '.log')
     logger = get_logger(log_file_path=log_file_path,
@@ -64,7 +63,6 @@ def init_logger():
 
 def init_configs():
     global logger
-
     logger.info('init configs for utils and actions')
     config_path = Path(__file__).parent.absolute() / 'utils' / 'config.ini'
     action_config_path = Path(__file__).parent.absolute() / \
@@ -75,15 +73,14 @@ def init_configs():
 
 def build_runtime_image():
     global logger
-
     logger.info('build python3action image')
     docker_image_build(build_path=Path(__file__).parent / 'runtimes' / 'social-network-runtime',
                        dockerfile='Dockerfile',
-                       tag='zzhou612/social-network-runtime:latest',
+                       tag='mania/social-network-runtime:latest',
                        result=False)
     logger.info('push python3action image')
     docker_image_push(
-        tag='zzhou612/social-network-runtime:latest', result=False)
+        tag='mania/social-network-runtime:latest', result=False)
 
 
 def create_actions_sequences():
@@ -91,7 +88,7 @@ def create_actions_sequences():
 
     logger.info('create actions & sequences')
     actions_dir = Path(__file__).parent.absolute() / 'actions'
-    social_network_actions_dir = actions_dir / 'social-network'
+    social_network_actions_dir = actions_dir / 'social_network'
     common_dir = actions_dir / 'common'
 
     for action_path in social_network_actions_dir.iterdir():
@@ -111,12 +108,12 @@ def create_actions_sequences():
                         zf.write(filename=p, arcname=p.relative_to(action_path))
             create_action(action_name=action_path.stem, app_file=zf_path,
                           cpu=1.0, memory=256,
-                          docker_image='zzhou612/social-network-runtime')
+                          docker_image='mania/social-network-runtime')
             zf_path.unlink()
         elif action_path.is_file() and action_path.suffix == '.py':
             create_action(action_name=action_path.stem, app_file=action_path,
                           cpu=1.0, memory=256,
-                          docker_image='zzhou612/social-network-runtime')
+                          docker_image='mania/social-network-runtime')
 
     create_sequence(sequence_name='write_home_timeline_pipeline',
                     action_list=['read_social_graph', 'write_home_timeline'])
@@ -128,7 +125,7 @@ def create_actions_sequences():
                     action_list=['read_user_timeline', 'read_post'])
 
 
-def init_mongodb(drop_all_dbs=True, except_social_graph=False):
+def init_mongodb(drop_all_dbs=True, except_social_graph=True):
     global logger
     global post_storage_client
     global social_graph_client
@@ -141,25 +138,25 @@ def init_mongodb(drop_all_dbs=True, except_social_graph=False):
 
     post_storage_mongodb_ip_addr = host_ip_addr
     post_storage_mongodb_port = get_mongodb_port_by_container_name(
-        'post_storage_mongodb')
+        'post_storage_mongodb1')
     post_storage_client = MongoClient(
         post_storage_mongodb_ip_addr, post_storage_mongodb_port)
 
     social_graph_mongodb_ip_addr = host_ip_addr
     social_graph_mongodb_port = get_mongodb_port_by_container_name(
-        'social_graph_mongodb')
+        'social_graph_mongodb1')
     social_graph_client = MongoClient(
         social_graph_mongodb_ip_addr, social_graph_mongodb_port)
 
     user_timeline_mongodb_ip_addr = host_ip_addr
     user_timeline_mongodb_port = get_mongodb_port_by_container_name(
-        'user_timeline_mongodb')
+        'user_timeline_mongodb1')
     user_timeline_client = MongoClient(
         user_timeline_mongodb_ip_addr, user_timeline_mongodb_port)
 
     home_timeline_mongodb_ip_addr = host_ip_addr
     home_timeline_mongodb_port = get_mongodb_port_by_container_name(
-        'home_timeline_mongodb')
+        'home_timeline_mongodb1')
     home_timeline_client = MongoClient(
         home_timeline_mongodb_ip_addr, home_timeline_mongodb_port)
 
@@ -196,6 +193,7 @@ def init_mongodb(drop_all_dbs=True, except_social_graph=False):
 def init_social_graph(social_graph_path):
     global logger
     global social_graph_client
+    global users
 
     logger.info('init social graph')
     user_db = social_graph_client['user']
@@ -209,8 +207,10 @@ def init_social_graph(social_graph_path):
                                          name='user_id', unique=True)
 
     def get_nodes(file):
+        global logger
         line = file.readline()
         word = line.split()[0]
+        #logger.info(f'*********************** {line}, {word}')
         return int(word)
 
     def get_edges(file):
@@ -249,7 +249,7 @@ def init_social_graph(social_graph_path):
         nodes = get_nodes(file)
         edges = get_edges(file)
 
-    logger.info('upload user nodes')
+    logger.info(f'upload user nodes {nodes}')
     for i in tqdm(range(1, nodes + 1)):
         register(user_id=i)
 
@@ -263,13 +263,13 @@ def init_social_graph(social_graph_path):
 
 def load_image_sizes():
     sizes = []
-    fname = 'facebook.2.image.sizes' 
-    with open(fname, 'r') as fd:
+    image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'facebook.2.image.sizes'
+    with open(image_size_path, 'r') as fd:
         data = [int(s) for s in fd.read().split('\n')[:-1]]
         sizes.extend(data)
     
-    fname = 'instagram.image.sizes.clean' 
-    with open(fname, 'r') as fd:
+    image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'instagram.image.sizes.clean'
+    with open(image_size_path, 'r') as fd:
         data = [int(s) for s in fd.read().split('\n')[:-1]]
         sizes.extend(data)
     return sizes
@@ -280,7 +280,7 @@ class SocialNetworkUser(HttpUser):
     global logger
     host = APIHOST
     wait_time = between(1, 2.5)
-    n_users = 20 # 962
+    n_users = 10
     medias = set()
     sizes = []
     trace = []
@@ -288,9 +288,9 @@ class SocialNetworkUser(HttpUser):
 
     def on_start(self):
         self.sizes = load_image_sizes()
-        for i in range(1, self.n_users):
-            # generate 100 posts for each user. 
-            self.compose_post(i)
+        #for i in range(1, self.n_users):
+        #    # generate 100 posts for each user. 
+        #    self.compose_post(i)
 
 
 
@@ -299,9 +299,7 @@ class SocialNetworkUser(HttpUser):
             json.dump(self.trace, fd)
 
 
-
-
-    @task(2)
+    @task(0)
     def compose_post(self, _id=None):
         user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
@@ -381,7 +379,7 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    @task(4)
+    @task(5)
     def read_home_timeline(self):
         action_name = 'read_home_timeline_pipeline'
         user_id = random.randint(1, self.n_users)
@@ -413,7 +411,7 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    @task(4)
+    @task(5)
     def read_user_timeline(self):
         action_name = 'read_user_timeline_pipeline'
         user_id = random.randint(1, self.n_users)
@@ -513,6 +511,8 @@ def replay_read_home_timeline(request):
     }
     res = invoke_action(action_name='read_home_timeline_pipeline',
             params=action_params, blocking=True, result=True)
+
+    #print(res)
     pass
 
 
@@ -531,11 +531,32 @@ def replay_read_user_timeline(request):
     }
     res = invoke_action(action_name='read_user_timeline_pipeline',
             params=action_params, blocking=True, result=True)
+    #print(res)
     pass
+
+
+def get_user_ids(dbs):
+    global social_graph_client
+    global logger
+
+    logger.info('get list of users')
+    user_db = social_graph_client['user']
+    user_collection = user_db['user']
+    user_collection.create_index(
+        [('user_id', pymongo.ASCENDING)], name='user_id', unique=True)
+    
+    cursor = user_collection.find({})
+    logger.error(f'cursor {list(cursor)}, {user_db}')
+    for d in cursor:
+        logger.error(f'{d}')
+    return cursor
+
 
 
 def compose_post(_id=None, n_users=100):
     global _medias
+    global dbs
+
     user_id = random.randint(1, n_users) if not _id else _id 
     username = 'username_' + str(user_id)
     text = ''.join(random.choices(
@@ -587,6 +608,10 @@ def compose_post(_id=None, n_users=100):
     }
     res = invoke_action(action_name='compose_post',
             params=action_params, blocking=True, result=True)
+    return res
+
+
+
 
 sizes = load_image_sizes() 
 
@@ -608,19 +633,22 @@ def main(run_locust_test=True):
     # -----------------------------------------------------------------------
     # Create actions & sequences
     # -----------------------------------------------------------------------
-    create_actions_sequences()
+    #create_actions_sequences()
 
     # -----------------------------------------------------------------------
     # MongoDB
     # -----------------------------------------------------------------------
-    dbs = init_mongodb(drop_all_dbs=True)
+    drop_all_dbs=False
+    except_social_graph=True
+    dbs = init_mongodb(drop_all_dbs=drop_all_dbs, except_social_graph=except_social_graph)
     # print('dbs: {}\n'.format(dbs))
 
     # -----------------------------------------------------------------------
     # Init social graph
     # -----------------------------------------------------------------------
     if run_locust_test:
-        init_social_graph(social_graph_path=Path(__file__).parent /
+        if (drop_all_dbs) and (not except_social_graph):
+            init_social_graph(social_graph_path=Path(__file__).parent /
                           'datasets' / 'social_graph' / 'socfb-Reed98.mtx')
     else:
         user_db = social_graph_client['user']
@@ -668,13 +696,16 @@ def main(run_locust_test=True):
     # Invoke actions
     # -----------------------------------------------------------------------
     
-    load_database = False
-    replay_trace = True
+    load_database = True
+    replay_trace = False
     if load_database:
-        n_users = 10 #962
+        n_users = 10
         for i in range(0, n_users):
-            for _ in range(0, 1):
+            for p in range(0, 20):
+                logger.info(f'user {i}, post {p} ')
                 compose_post(i, n_users)
+                break
+            break
     elif replay_trace:
         with open('trace.json', 'r') as fd:
             traces = json.load(fd)
@@ -686,6 +717,7 @@ def main(run_locust_test=True):
                     replay_read_home_timeline(tr['read_home_timeline_pipeline'])
                 elif 'read_user_timeline_pipeline' in tr:
                     replay_read_user_timeline(tr['read_user_timeline_pipeline'])
+                #break
     elif run_locust_test:
         logger.info('locust load testing starts')
 
@@ -709,7 +741,7 @@ def main(run_locust_test=True):
         env.runner.start(user_count=1, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(600, lambda: env.runner.quit())
+        gevent.spawn_later(3600, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()

@@ -1,52 +1,52 @@
 version: "3.5"
 services:
-  post-storage-mongodb:
+  post-storage-mongodb1:
     image: mongo
-    container_name: post_storage_mongodb
+    container_name: post_storage_mongodb1
     networks:
-      - serverless
+      - serverless1
     ports:
-      - 27017:27017
+      - 17017:27017
     restart: always
 
-  social-graph-mongodb:
+  social-graph-mongodb1:
     image: mongo
-    container_name: social_graph_mongodb
+    container_name: social_graph_mongodb1
     networks:
-      - serverless
+      - serverless1
     ports:
-      - 27018:27017
+      - 17018:27017
     restart: always
 
-  user-timeline-mongodb:
+  user-timeline-mongodb1:
     image: mongo
-    container_name: user_timeline_mongodb
+    container_name: user_timeline_mongodb1
     networks:
-      - serverless
+      - serverless1
     ports:
-      - 27019:27017
+      - 17019:27017
     restart: always
 
-  home-timeline-mongodb:
+  home-timeline-mongodb1:
     image: mongo
-    container_name: home_timeline_mongodb
+    container_name: home_timeline_mongodb1
     networks:
-      - serverless
+      - serverless1
     ports:
-      - 27020:27017
+      - 17020:27017
     restart: always
 
-  couchserver:
+  couchserver1:
     image: couchdb
     ports:
-      - "5984:5984"
+      - "5985:5984"
     environment:
       - COUCHDB_USER=whisk_admin
       - COUCHDB_PASSWORD=some_passw0rd
     volumes:
-        - ./dbdata:/opt/couchdb/data
+        - ./dbdata:/opt/couchdb1/data
     restart: always
 
 networks:
-  serverless:
+  serverless1:
     driver: bridge 

@@ -1,3 +1,4 @@
 cluster-members: local-membership.json
-n-workers: 5
-policy: ch # consistent round robin
+n-workers: 1
+policy: random # consistent round robin
+port: 7072

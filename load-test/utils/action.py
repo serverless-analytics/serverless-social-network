@@ -11,6 +11,8 @@ import urllib3
 from .activation import get_activation_by_id
 from .config import APIHOST, AUTH_KEY, NAMESPACE, USER_PASS, WSK
 
+import logging
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -27,6 +29,7 @@ def create_action(action_name,
         code = base64.b64encode(code)
     code = code.decode('utf-8')
     #response = requests.put(url=APIHOST + '/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
+    print(APIHOST + '/api/' + action_name)
     response = requests.put(url=APIHOST + '/api/' + action_name,
                             json={
                                 'namespace': NAMESPACE,
@@ -93,6 +96,7 @@ def invoke_action(action_name, params, blocking=False, result=False, poll_interv
     print(f'action name: {action_name}, response is {response} and text is {response.text}')
     
     if result:
+        logging.info(response.text)
         return json.loads(response.text)
     else:
         activation_id = json.loads(response.text)['activationId']
