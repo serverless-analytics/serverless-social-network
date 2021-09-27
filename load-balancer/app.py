@@ -87,37 +87,38 @@ async def handle_get(request, host):
         async with session.get(f'{host}{request.path}', 
                 json=params,
                 params = url_params) as resp:
-            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            #print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            print(f'status is {resp.status}')
             return web.Response(text = (await resp.text()))
 
 
 async def handle_put(request, host):
     params = await request.json()
     url_params =dict(request.query) 
-    print(f'inside handle_post request {host}/{request.path},\n headers \
-            {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
-            json is {params.keys()}')
+    #print(f'inside handle_post request {host}/{request.path},\n headers \
+    #        {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
+    #        json is {params.keys()}')
    
     async with aiohttp.ClientSession() as session:
         async with session.put(f'{host}{request.path}', 
                 json=params,
                 params = url_params) as resp:
-            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            print(f'POST request {host}/{request.path}:  status is {resp.status}')
             return web.Response(text = (await resp.text()))
 
 
 async def handle_post(request, host):
     params = await request.json()
     url_params =dict(request.query) 
-    print(f'POST request {host}/{request.path},\n headers \
-            {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
-            json is {params.keys()}')
+    #print(f'POST request {host}/{request.path},\n headers \
+    #         {request.headers},\n url is {request.url},\n query is {dict(request.query)}\n \
+    #          json is {params.keys()}')
    
     async with aiohttp.ClientSession() as session:
         async with session.post(f'{host}{request.path}', 
                 json=params,
                 params = url_params) as resp:
-            print(f'status is {resp.status}, response {(await resp.json()).keys()}')
+            print(f'POST request {host}/{request.path}:  status is {resp.status}')
             return web.Response(text = (await resp.text()))
 
 

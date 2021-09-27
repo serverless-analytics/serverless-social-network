@@ -16,8 +16,8 @@ class LoadBalancer:
         self.servers = self.init_workers(args.cluster_members)
         self.server_names = [s['address'] for s in self.servers]
         self.policy = args.policy 
-        self.ch_ring = ConsistentHash(server_names, replicas=100) if self.policy == 'ch' else None
-        self.crr_ring = ColorRoundRobin(server_names) if self.policy == 'crr' else None
+        self.ch_ring = ConsistentHash(self.server_names, replicas=100) if self.policy == 'ch' else None
+        self.crr_ring = ColorRoundRobin(self.server_names) if self.policy == 'crr' else None
         self.lock = asyncio.Lock() if self.policy == 'crr' else None
         self.threads = []
 
@@ -43,13 +43,14 @@ class LoadBalancer:
     async def distribute_load(self, params):
         for p, val in params:
             if p == 'locality':
+                logging.warning(f'distributed_load, policy is {crr}, locality is {val}')
                 return (await self.select_server(self.policy, locality=val))
         return (await self.select_server(policy='random')) # select a server randomly. You need an error mesg which says you swithced to rnadom. 
 
     async def do_route(self, request):
         logging.info(f'recieves {request.headers}')
         headers = [(name, value) for (name, value) in request.headers.items()]
-        params = [] #[(name, value) for (name, value) in request.args.items()]
+        params = dict(request.query) #[(name, value) for (name, value) in request.args.items()]
         host = (await self.distribute_load(headers))
         
         logging.info(f'path: {request.url}, params: {params}, headers: {headers}, route to: {host}')
