@@ -87,16 +87,12 @@ def invoke_action(action_name, params, blocking=False, result=False, poll_interv
     url_params['blocking'] = str(blocking).lower()
     url_params['result'] = str(result).lower()
 
-    print(f'{action_name} is called for {APIHOST}')
     #response = requests.post(url=APIHOST + '/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
     response = requests.post(url=APIHOST + '/api/' + action_name,
                              json=params,
                              params=url_params,
                              auth=(USER_PASS[0], USER_PASS[1]), verify=False)
-    print(f'action name: {action_name}, response is {response} and text is {response.text}')
-    
     if result:
-        logging.info(response.text)
         return json.loads(response.text)
     else:
         activation_id = json.loads(response.text)['activationId']

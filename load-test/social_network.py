@@ -33,6 +33,9 @@ from utils.logger import get_logger
 
 import json
 import ast
+import itertools
+import math
+
 # -----------------------------------------------------------------------
 # Global variables
 # -----------------------------------------------------------------------
@@ -125,7 +128,7 @@ def create_actions_sequences():
                     action_list=['read_user_timeline', 'read_post'])
 
 
-def init_mongodb(drop_all_dbs=True, except_social_graph=True):
+def init_mongodb(drop_all_dbs=False, except_social_graph=True):
     global logger
     global post_storage_client
     global social_graph_client
@@ -135,28 +138,29 @@ def init_mongodb(drop_all_dbs=True, except_social_graph=True):
     logger.info('init mongodb')
     #host_ip_addr = socket.gethostname() + '.ece.cornell.edu'
     host_ip_addr = socket.gethostname() # Mania: this should be changed to Rodrigo's address 
+    #host_ip_addr = "rfonseca-dask.westus2.cloudapp.azure.com"
 
     post_storage_mongodb_ip_addr = host_ip_addr
     post_storage_mongodb_port = get_mongodb_port_by_container_name(
-        'post_storage_mongodb1')
+        'post_storage_mongodb')
     post_storage_client = MongoClient(
         post_storage_mongodb_ip_addr, post_storage_mongodb_port)
 
     social_graph_mongodb_ip_addr = host_ip_addr
     social_graph_mongodb_port = get_mongodb_port_by_container_name(
-        'social_graph_mongodb1')
+        'social_graph_mongodb')
     social_graph_client = MongoClient(
         social_graph_mongodb_ip_addr, social_graph_mongodb_port)
 
     user_timeline_mongodb_ip_addr = host_ip_addr
     user_timeline_mongodb_port = get_mongodb_port_by_container_name(
-        'user_timeline_mongodb1')
+        'user_timeline_mongodb')
     user_timeline_client = MongoClient(
         user_timeline_mongodb_ip_addr, user_timeline_mongodb_port)
 
     home_timeline_mongodb_ip_addr = host_ip_addr
     home_timeline_mongodb_port = get_mongodb_port_by_container_name(
-        'home_timeline_mongodb1')
+        'home_timeline_mongodb')
     home_timeline_client = MongoClient(
         home_timeline_mongodb_ip_addr, home_timeline_mongodb_port)
 
@@ -263,10 +267,10 @@ def init_social_graph(social_graph_path):
 
 def load_image_sizes():
     sizes = []
-    image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'facebook.2.image.sizes'
-    with open(image_size_path, 'r') as fd:
-        data = [int(s) for s in fd.read().split('\n')[:-1]]
-        sizes.extend(data)
+    #image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'facebook.2.image.sizes'
+    #with open(image_size_path, 'r') as fd:
+    #    data = [int(s) for s in fd.read().split('\n')[:-1]]
+    #    sizes.extend(data)
     
     image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'instagram.image.sizes.clean'
     with open(image_size_path, 'r') as fd:
@@ -275,31 +279,67 @@ def load_image_sizes():
     return sizes
 
 
+
+import threading
+from queue import Queue
+
+
+def zipf(n_interactions, s, n_users):
+    def f(N, k, s):
+        return (1/math.pow(k, s))/sigma
+
+    users = list(range(0, n_users))
+    random.shuffle(users) # assign rank to users randomly
+
+    weights = [0]*n_users
+    sigma = sum([1/math.pow(n, s) for n in range(1, n_users + 1)])
+    for i, user in enumerate(users):
+        weights[i] = f(N=n_users, k = i + 1, s=s)
+
+    transactions = random.choices(users, weights = weights, k = n_interactions)
+    with open('/home/mania/serverless-social-network-multithreaded/functions/results/zipfusers1.2.locust100.512M/users', 'w') as fd:
+        fd.write(str(transactions))
+
+    trans = Queue()
+    for t in transactions: trans.put(t)
+    return trans
+
+
+n_users = 63392
+n_interactions = 1000000
+s = 1.2
+transactions = zipf(n_interactions = n_interactions, s = s, n_users=n_users)
+
+
+trace = Queue()
+
+
 class SocialNetworkUser(HttpUser):
     global dbs
+    global transactions
+    global trace
     global logger
     host = APIHOST
     wait_time = between(1, 2.5)
-    n_users = 10
+    n_users = 63392
     medias = set()
     sizes = []
-    trace = []
+    mutex = threading.Lock()
+    index_trans = 0
 
 
     def on_start(self):
         self.sizes = load_image_sizes()
-        #for i in range(1, self.n_users):
-        #    # generate 100 posts for each user. 
-        #    self.compose_post(i)
 
 
 
     def on_stop(self):
-        with open('trace.json', 'w') as fd:
-            json.dump(self.trace, fd)
+        logger.info("Let see how many times thhis function is called")
+        #with open('trace.json', 'w') as fd:
+        #    json.dump(self.trace, fd)
 
 
-    @task(2)
+    @task(0)
     def compose_post(self, _id=None):
         user_id = random.randint(1, self.n_users) if not _id else _id 
         username = 'username_' + str(user_id)
@@ -366,7 +406,8 @@ class SocialNetworkUser(HttpUser):
         except: 
             res = ast.literal_eval(result.text)
 
-        self.trace.append({
+        #with self.mutex:
+        self.trace.put({
             'compose_post': {
                 'username': username,
                 'user_id': user_id,
@@ -382,12 +423,21 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    @task(4)
+    @task(5)
     def read_home_timeline(self):
         action_name = 'read_home_timeline_pipeline'
-        user_id = random.randint(1, self.n_users)
-        start = random.randint(0, 100)
+        start = random.randint(0, 12)
         stop = start + 10
+        #with self.mutex:
+        #user_id = self.transactions[self.index_trans] #random.randint(1, self.n_users)
+        user_id = transactions.get()
+        transactions.task_done()
+        #logger.critical(f'user_id: {user_id}')
+        trace.put({'read_home_timeline_pipeline': {
+            'user_id': user_id,
+            'start': start,
+            'stop': stop}})
+
         action_params = {
             'read_home_timeline': {
                 'user_id': user_id,
@@ -405,21 +455,25 @@ class SocialNetworkUser(HttpUser):
                          name=action_name)
 
 
-        self.trace.append({'read_home_timeline_pipeline': {
-                'user_id': user_id,
-                'start': start,
-                'stop': stop}})
-
         return
 
 
 
-    @task(4)
+    @task(5)
     def read_user_timeline(self):
         action_name = 'read_user_timeline_pipeline'
-        user_id = random.randint(1, self.n_users)
-        start = random.randint(0, 100)
+        start = random.randint(0, 12)
         stop = start + 10
+        #with self.mutex:
+        #user_id = self.transactions[self.index_trans] # random.randint(1, self.n_users)
+        user_id = transactions.get()
+        transactions.task_done()
+        #logger.critical(f'user_id: {user_id}')
+        trace.put({'read_user_timeline_pipeline': {
+            'user_id': user_id,
+            'start': start,
+            'stop': stop}})
+        
         action_params = {
             'read_user_timeline': {
                 'user_id': user_id,
@@ -428,19 +482,13 @@ class SocialNetworkUser(HttpUser):
                 'dbs': dbs
             }
         }
-        url_params = {'blocking': 'true', 'result': 'false'}
+        url_params = {'blocking': 'true', 'result': 'true'}
         self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
-        
-        self.trace.append({'read_user_timeline_pipeline': {
-                'user_id': user_id,
-                'start': start,
-                'stop': stop}})
-
         return
 
 
@@ -499,8 +547,11 @@ def replay_compose_post(request):
     pass
 
 
+req = 0
+
 def replay_read_home_timeline(request):
     global dbs
+    global req
     user_id = request['user_id']
     start = request['start']
     stop = request['stop']
@@ -515,17 +566,19 @@ def replay_read_home_timeline(request):
     res = invoke_action(action_name='read_home_timeline_pipeline',
             params=action_params, blocking=True, result=True)
 
-    #print(res)
+    print(f'read_home_timeline: req id {req}')
+    req += 1
     pass
 
 
 def replay_read_user_timeline(request):
     global dbs
+    global req
     user_id = request['user_id']
     start = request['start']
     stop = request['stop']
     action_params = {
-        'read_home_timeline': {
+        'read_user_timeline': {
             'user_id': user_id,
             'start': start,
             'stop': stop,
@@ -534,7 +587,8 @@ def replay_read_user_timeline(request):
     }
     res = invoke_action(action_name='read_user_timeline_pipeline',
             params=action_params, blocking=True, result=True)
-    #print(res)
+    print(f'read_user_timeline: req id {req}')
+    req += 1
     pass
 
 
@@ -621,7 +675,7 @@ sizes = load_image_sizes()
 def main(run_locust_test=True):
     global logger
     global dbs
-
+    global trace
     # -----------------------------------------------------------------------
     # Init logger & configs
     # -----------------------------------------------------------------------
@@ -652,7 +706,7 @@ def main(run_locust_test=True):
     if run_locust_test:
         if (drop_all_dbs) and (not except_social_graph):
             init_social_graph(social_graph_path=Path(__file__).parent /
-                          'datasets' / 'social_graph' / 'socfb-Reed98.mtx')
+                          'datasets' / 'social_graph' / 'socfb-OR.mtx')
     else:
         user_db = social_graph_client['user']
         user_collection = user_db['user']
@@ -702,7 +756,7 @@ def main(run_locust_test=True):
     load_database = False
     replay_trace = False
     if load_database:
-        n_users = 10
+        n_users = 63392
         for i in range(0, n_users):
             for p in range(0, 20):
                 logger.info(f'user {i}, post {p} ')
@@ -741,16 +795,25 @@ def main(run_locust_test=True):
         gevent.spawn(stats_printer(env.stats))
 
         # start the test
-        env.runner.start(user_count=1, spawn_rate=5)
+        env.runner.start(user_count=16, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(600, lambda: env.runner.quit())
+        gevent.spawn_later(1800, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()
 
         # stop the web server for good measures
-        env.web_ui.stop()
+        #env.web_ui.stop()
+
+        trace_data = [] 
+        while not trace.empty():
+            t = trace.get(block=False)
+            trace.task_done()
+            trace_data.append(t)
+        with open('trace.json', 'w') as fd:
+            json.dump(trace_data, fd)
+
 
         csv_base_filepath = Path(
             __file__).parent.absolute() / 'locust' / 'openwhisk'

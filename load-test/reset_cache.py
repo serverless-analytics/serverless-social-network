@@ -30,7 +30,7 @@ def get_args():
             default=8000000000)
 
 
-    parser.add_argument('--cache-members', 
+    parser.add_argument('--cluster-members', 
             help='points to config file that consist of cache memebrship list',
             required=False,
             default=None)
@@ -121,8 +121,9 @@ def parse_config_file(args):
     fpath = args.config
     with open(fpath, 'r') as fd:
         t_conf = yaml.load(fd, Loader=yaml.FullLoader)
-        if 'cache-members' in t_conf:
-            args.cache_members = t_conf['cache-members']
+        print(t_conf)
+        if 'cluster-members' in t_conf:
+            args.cluster_members = t_conf['cluster-members']
         if 'scheduler' in t_conf:
             args.scheduler = t_conf['scheduler']
         if 'policy' in t_conf:

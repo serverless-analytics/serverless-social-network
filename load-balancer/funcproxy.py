@@ -33,25 +33,22 @@ class LoadBalancer:
             return random.choice(self.server_names)
         if policy == 'ch':
             assert(self.ch_ring)
-            return ch_ring.get_member(locality)
+            return self.ch_ring.get_member(locality)
         if policy == 'crr':
             assert(self.crr_ring)
             async with self.lock:
-                worker = crr_ring.get_member(locality) 
+                worker = self.crr_ring.get_member(locality) 
             return worker 
         
     async def distribute_load(self, params):
-        for p, val in params:
-            if p == 'locality':
-                logging.warning(f'distributed_load, policy is {crr}, locality is {val}')
-                return (await self.select_server(self.policy, locality=val))
+        if 'locality' in params:
+            return (await self.select_server(self.policy, locality=params['locality']))
         return (await self.select_server(policy='random')) # select a server randomly. You need an error mesg which says you swithced to rnadom. 
 
     async def do_route(self, request):
-        logging.info(f'recieves {request.headers}')
         headers = [(name, value) for (name, value) in request.headers.items()]
         params = dict(request.query) #[(name, value) for (name, value) in request.args.items()]
-        host = (await self.distribute_load(headers))
+        host = (await self.distribute_load(params))
         
         logging.info(f'path: {request.url}, params: {params}, headers: {headers}, route to: {host}')
         method = self._handlers.get(request.method)

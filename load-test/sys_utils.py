@@ -8,7 +8,7 @@ import requests
 
 
 def get_cache_list(args):
-    with open(args.cache_members, 'r') as fd:
+    with open(args.cluster_members, 'r') as fd:
         t_members = json.load(fd)['CacheList']
         return t_members[0:int(args.n_caches)]
 

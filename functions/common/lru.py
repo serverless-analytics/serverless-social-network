@@ -25,7 +25,8 @@ class LruCache:
             freed += obj_size
             with open(f'{self.name}.cache.log', 'a') as fd:
                 fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
-            if len(self.cache) == 0: return freed
+            logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
+            if len(self.cache) == 0: return self.capacity
         return freed 
         
 
@@ -37,10 +38,13 @@ class LruCache:
         assert(size < self.capacity)
         if self.available < size:
             freed = self.evict(size - self.available)
-            if freed < size: 
+            if freed < (size - self.available): 
                 logging.warning(f'LRUCache: cannot cache {key}, unable to free {size - self.available}')
                 return
-            self.available += freed
+            elif freed == self.capacity:
+                self.available = freed
+            else:
+                self.available += freed
             logging.warning(f'{self.available},{self.capacity}')
             assert((self.available >= 0) and (self.available <= self.capacity)) 
         self.cache[key] = value
