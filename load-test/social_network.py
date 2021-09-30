@@ -865,7 +865,7 @@ def main(run_locust_test=True):
         env.runner.start(user_count=16, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(1800, lambda: env.runner.quit())
+        gevent.spawn_later(1200, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()
