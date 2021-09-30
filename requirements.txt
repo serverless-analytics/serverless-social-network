@@ -35,3 +35,4 @@ docker
 numpy
 pandas
 colorlog
+pympler
