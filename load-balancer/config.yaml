@@ -1,4 +1,5 @@
-cluster-members: cache-membership.json
+#cluster-members: cache-membership.json
+cluster-members: local-membership.json
 n-workers: 1
-policy: crr # consistent round robin
+policy: random # consistent round robin
 port: 7071

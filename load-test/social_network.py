@@ -31,6 +31,8 @@ from utils.docker_image import docker_image_build, docker_image_push
 from utils.init_config import init_config
 from utils.logger import get_logger
 
+
+
 import json
 import ast
 import itertools
@@ -333,8 +335,8 @@ class SocialNetworkUser(HttpUser):
 
 
 
-    def on_stop(self):
-        logger.info("Let see how many times thhis function is called")
+    #def on_stop(self):
+        #logger.info("Let see how many times thhis function is called")
         #with open('trace.json', 'w') as fd:
         #    json.dump(self.trace, fd)
 
@@ -428,16 +430,14 @@ class SocialNetworkUser(HttpUser):
         action_name = 'read_home_timeline_pipeline'
         start = random.randint(0, 12)
         stop = start + 10
-        #with self.mutex:
-        #user_id = self.transactions[self.index_trans] #random.randint(1, self.n_users)
         user_id = transactions.get()
         transactions.task_done()
-        #logger.critical(f'user_id: {user_id}')
-        trace.put({'read_home_timeline_pipeline': {
-            'user_id': user_id,
-            'start': start,
-            'stop': stop}})
 
+        trace_data = {'read_home_timeline_pipeline': {
+                        'user_id': user_id,
+                        'start': start,
+                        'stop': stop}}
+        
         action_params = {
             'read_home_timeline': {
                 'user_id': user_id,
@@ -447,14 +447,34 @@ class SocialNetworkUser(HttpUser):
             }
         }
         url_params = {'blocking': 'true', 'result': 'true'}
-        self.client.post(url='/api/' + action_name,
+        resp = self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
 
+        
+        try:
+            result = json.loads(resp.text)
+        except:
+            result = ast.literal_eval(resp.text)
 
+        #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground:  543497539150576606, dict_keys(['media_id', 'media_type', 'media_size', 'media_content', 'post_id', 'author', 'timestamp', 'post_type'])
+        #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground: 0 dict_keys(['post_id', 'author', 'text', 'media_ids', 'medias', 'timestamp', 'post_type'])
+ 
+        objects = []
+        post_ids = result['post_id']
+        posts = [post  for p in result.get('posts', []) for post in p['posts']]
+        for i, post in enumerate(posts):
+            logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}')
+            objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
+            medias = post['medias']
+            for media in medias:
+                objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
+                logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+        trace_data['read_home_timeline_pipeline']['objects'] = objects
+        trace.put(trace_data)
         return
 
 
@@ -464,15 +484,12 @@ class SocialNetworkUser(HttpUser):
         action_name = 'read_user_timeline_pipeline'
         start = random.randint(0, 12)
         stop = start + 10
-        #with self.mutex:
-        #user_id = self.transactions[self.index_trans] # random.randint(1, self.n_users)
         user_id = transactions.get()
         transactions.task_done()
-        #logger.critical(f'user_id: {user_id}')
-        trace.put({'read_user_timeline_pipeline': {
-            'user_id': user_id,
-            'start': start,
-            'stop': stop}})
+        trace_data = {action_name: {
+                           'user_id': user_id,
+                            'start': start,
+                            'stop': stop}}
         
         action_params = {
             'read_user_timeline': {
@@ -483,22 +500,42 @@ class SocialNetworkUser(HttpUser):
             }
         }
         url_params = {'blocking': 'true', 'result': 'true'}
-        self.client.post(url='/api/' + action_name,
+        resp = self.client.post(url='/api/' + action_name,
                          params=url_params,
                          json=action_params,
                          auth=(USER_PASS[0], USER_PASS[1]),
                          verify=False,
                          name=action_name)
+        try:
+            result = json.loads(resp.text)
+        except:
+            result = ast.literal_eval(resp.text)
+
+ 
+        objects = []
+        post_ids = result['post_id']
+        posts = [post  for p in result.get('posts', []) for post in p['posts']]
+        for i, post in enumerate(posts):
+            logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}')
+            objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
+            medias = post['medias']
+            for media in medias:
+                objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
+                logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+        trace_data[action_name]['objects'] = objects
+        trace.put(trace_data)
         return
 
 
 
 _medias = set()
-
+concurrent_req = threading.Semaphore(16)        
 
 def replay_compose_post(request):
     global _medias
     global dbs
+    global concurrent_req
+
     user_id = request['user_id']
     username = 'username_' + str(user_id)
     text = ''.join(random.choices(
@@ -544,6 +581,7 @@ def replay_compose_post(request):
     }
     res = invoke_action(action_name='compose_post',
             params=action_params, blocking=True, result=True)
+    concurrent_req.release()
     pass
 
 
@@ -552,6 +590,11 @@ req = 0
 def replay_read_home_timeline(request):
     global dbs
     global req
+    global concurrent_req
+    global logger
+
+    logger.info('prepare replay_read_home_timeline')
+
     user_id = request['user_id']
     start = request['start']
     stop = request['stop']
@@ -568,12 +611,16 @@ def replay_read_home_timeline(request):
 
     print(f'read_home_timeline: req id {req}')
     req += 1
-    pass
+    concurrent_req.release()
 
 
 def replay_read_user_timeline(request):
     global dbs
     global req
+    global concurrent_req
+    global logger
+
+    logger.info('prepare replay_read_user_timeline')
     user_id = request['user_id']
     start = request['start']
     stop = request['stop']
@@ -589,6 +636,7 @@ def replay_read_user_timeline(request):
             params=action_params, blocking=True, result=True)
     print(f'read_user_timeline: req id {req}')
     req += 1
+    concurrent_req.release()
     pass
 
 
@@ -613,6 +661,7 @@ def get_user_ids(dbs):
 def compose_post(_id=None, n_users=100):
     global _medias
     global dbs
+
 
     user_id = random.randint(1, n_users) if not _id else _id 
     username = 'username_' + str(user_id)
@@ -665,6 +714,9 @@ def compose_post(_id=None, n_users=100):
     }
     res = invoke_action(action_name='compose_post',
             params=action_params, blocking=True, result=True)
+
+
+
     return res
 
 
@@ -764,17 +816,32 @@ def main(run_locust_test=True):
                 break
             break
     elif replay_trace:
+        threads = []
         with open('trace.json', 'r') as fd:
             traces = json.load(fd)
-            #print(json.dumps(data, indent=4))
             for tr in traces:
+                concurrent_req.acquire()
                 if 'compose_post' in tr:
-                    replay_compose_post(tr['compose_post'])
+                    t = threading.Thread(target = replay_compose_post , args = (tr['compose_post'],))
+                    t.start()
+                    threads.append(t)
+                    #replay_compose_post(tr['compose_post'])
                 elif 'read_home_timeline_pipeline' in tr:
-                    replay_read_home_timeline(tr['read_home_timeline_pipeline'])
+                    t = threading.Thread(target = replay_read_home_timeline, args = (tr['read_home_timeline_pipeline'],))
+                    t.start()
+                    threads.append(t)
+                    #replay_read_home_timeline(tr['read_home_timeline_pipeline'])
                 elif 'read_user_timeline_pipeline' in tr:
-                    replay_read_user_timeline(tr['read_user_timeline_pipeline'])
+                    t = threading.Thread(target = replay_read_user_timeline , args = (tr['read_user_timeline_pipeline'],))
+                    t.start()
+                    threads.append(t)
+                    #replay_read_user_timeline(tr['read_user_timeline_pipeline'])
                 #break
+
+            for t in threads:
+                t.join()
+
+
     elif run_locust_test:
         logger.info('locust load testing starts')
 
