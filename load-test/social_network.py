@@ -428,17 +428,20 @@ class SocialNetworkUser(HttpUser):
     @task(5)
     def read_home_timeline(self):
         action_name = 'read_home_timeline_pipeline'
+        request_id = random.randint(0, sys.maxsize)
         start = random.randint(0, 12)
         stop = start + 10
         user_id = transactions.get()
         transactions.task_done()
 
         trace_data = {'read_home_timeline_pipeline': {
+                        'request_id': request_id,
                         'user_id': user_id,
                         'start': start,
                         'stop': stop}}
         
         action_params = {
+            'request_id': request_id,
             'read_home_timeline': {
                 'user_id': user_id,
                 'start': start,
@@ -464,8 +467,15 @@ class SocialNetworkUser(HttpUser):
         #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground: 0 dict_keys(['post_id', 'author', 'text', 'media_ids', 'medias', 'timestamp', 'post_type'])
  
         objects = []
+        cache_stats = []
+        object_access = []
+        logger.info(f'request id is {result["request_id"]}')
+        assert(request_id == result["request_id"])
+        timestamps = result['timestamps']
         post_ids = result['post_ids']
         for ps in result['posts']:
+            cache_stats.append(ps['cache_status'])
+            object_access.append(ps['object_access'])
             logger.info(ps.keys())
             logger.info(ps['cache_status'])
             logger.info(ps['object_access'])
@@ -478,7 +488,11 @@ class SocialNetworkUser(HttpUser):
             for media in medias:
                 objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
                 #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
-        trace_data['read_home_timeline_pipeline']['objects'] = objects
+        trace_data['objects'] = objects
+        trace_data['cache_status'] = cache_stats
+        trace_data['object_access'] = object_access
+        trace_data['timestamps'] = timestamps
+        #trace_data['read_home_timeline_pipeline']['objects'] = objects
         trace.put(trace_data)
         return
 
@@ -486,17 +500,20 @@ class SocialNetworkUser(HttpUser):
 
     @task(5)
     def read_user_timeline(self):
+        request_id = random.randint(0, sys.maxsize)
         action_name = 'read_user_timeline_pipeline'
         start = random.randint(0, 12)
         stop = start + 10
         user_id = transactions.get()
         transactions.task_done()
         trace_data = {action_name: {
-                           'user_id': user_id,
-                            'start': start,
-                            'stop': stop}}
+            'request_id': request_id,               
+            'user_id': user_id,
+            'start': start, 'stop': stop}}
         
+
         action_params = {
+            'request_id': request_id,
             'read_user_timeline': {
                 'user_id': user_id,
                 'start': start,
@@ -518,8 +535,15 @@ class SocialNetworkUser(HttpUser):
 
  
         objects = []
+        cache_stats = []
+        object_access = []
         post_ids = result['post_ids']
+        logger.info(f'request id is {result["request_id"]}')
+        assert(request_id == result["request_id"])
+        timestamps = result['timestamps']
         for ps in result['posts']:
+            cache_stats.append(ps['cache_status'])
+            object_access.append(ps['object_access'])
             logger.info(ps.keys())
             logger.info(ps['cache_status'])
             logger.info(ps['object_access'])
@@ -531,7 +555,10 @@ class SocialNetworkUser(HttpUser):
             for media in medias:
                 objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
                 #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
-        trace_data[action_name]['objects'] = objects
+        trace_data['objects'] = objects
+        trace_data['cache_status'] = cache_stats
+        trace_data['object_access'] = object_access
+        trace_data['timestamps'] = timestamps
         trace.put(trace_data)
         return
 

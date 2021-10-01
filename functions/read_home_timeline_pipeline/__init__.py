@@ -9,7 +9,8 @@ from . import action
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         req_body = req.get_json()
-        params = req_body.get('read_home_timeline')
+        #params = req_body.get('read_home_timeline')
+        params = req_body
     except ValueError:
         raise NameError('This is the error you should catch')
     finally:
