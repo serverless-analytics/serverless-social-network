@@ -2,8 +2,12 @@ from collections import OrderedDict
 import sys
 from pympler import asizeof
 import logging
+from common.utils import get_timestamp_ms
+
+
 
 class LruCache:
+
     def __init__(self, capacity=100, name='lru_cache'):
         '''
         capacity: cache size in bytes
@@ -12,6 +16,13 @@ class LruCache:
         self.capacity = int(capacity)
         self.available = int(capacity)
         self.name = name
+        self.first_eviction = 0
+        self.miss_count = 0
+        self.hit_count = 0
+        self.miss_byte_count = 0
+        self.hit_byte_count = 0
+        self.n_access = 0
+        
         pass
 
 
@@ -19,15 +30,18 @@ class LruCache:
         assert(size >=0)
         assert(size < self.capacity)
         freed = 0 
+        if not self.first_eviction:
+            self.first_eviction = get_timestamp_ms()
+
         while freed < size:
             key, value = self.cache.popitem(last = False)
             obj_size = asizeof.asizeof(value)
             freed += obj_size
-            with open(f'{self.name}.cache.log', 'a') as fd:
-                fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
-            logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
+            #with open(f'{self.name}.cache.log', 'a') as fd:
+            #    fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
+            #logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
             if len(self.cache) == 0: return self.capacity
-        return freed 
+        return freed
         
 
     def put(self, key, value):
@@ -36,6 +50,9 @@ class LruCache:
         # size calculation. 
         size = asizeof.asizeof(value)
         assert(size < self.capacity)
+        self.miss_byte_count += size
+        self.miss_count += 1
+
         if self.available < size:
             freed = self.evict(size - self.available)
             if freed < (size - self.available): 
@@ -45,22 +62,31 @@ class LruCache:
                 self.available = freed
             else:
                 self.available += freed
-            logging.warning(f'{self.available},{self.capacity}')
             assert((self.available >= 0) and (self.available <= self.capacity)) 
         self.cache[key] = value
         self.cache.move_to_end(key)
         self.available -= size
         assert((self.available >= 0) and (self.available <= self.capacity)) 
-        with open(f'{self.name}.cache.log', 'a') as fd:
-            fd.write(f'lru,put,{key},NA,{size},{self.available},{self.capacity}\n')
+        #with open(f'{self.name}.cache.log', 'a') as fd:
+        #    fd.write(f'lru,put,{key},NA,{size},{self.available},{self.capacity}\n')
 
 
     def get(self, key):
+        self.n_access += 1
         if key not in self.cache:
-            with open(f'{self.name}.cache.log', 'a') as fd:
-                fd.write(f'lru,get,{key},miss,-1,{self.available},{self.capacity}\n')
+            #with open(f'{self.name}.cache.log', 'a') as fd:
+            #    fd.write(f'lru,get,{key},miss,-1,{self.available},{self.capacity}\n')
             return -1; 
         self.cache.move_to_end(key)
-        with open(f'{self.name}.cache.log', 'a') as fd:
-            fd.write(f'lru,get,{key},hit,{asizeof.asizeof(self.cache[key])},{self.available},{self.capacity}\n')
+        #with open(f'{self.name}.cache.log', 'a') as fd:
+        #    fd.write(f'lru,get,{key},hit,{asizeof.asizeof(self.cache[key])},{self.available},{self.capacity}\n')
+        self.hit_byte_count = asizeof.asizeof(self.cache[key])
+        self.hit_count += 1
         return self.cache[key]
+
+
+    def get_status(self):
+        return {'timestamp': get_timestamp_ms(), 'name': self.name, 
+                'first_eviction': self.first_eviction, 'n_access': self.n_access,
+                'miss_count': self.miss_count, 'miss_byte_count': self.miss_byte_count, 
+                'hit_count': self.hit_count, 'hit_byte_count': self.hit_byte_count}
