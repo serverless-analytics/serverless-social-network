@@ -24,8 +24,8 @@ async def execute(args):
     }
 
     timestamps['main_start_ms'] = get_timestamp_ms()
-    
-    params = args #params = args.get('compose_post')
+    request_id = args.get('request_id', -1)
+    params = args.get('read_home_timeline', args)
     user_id = params['user_id']
     start = params['start']
     stop = params['stop']
@@ -75,6 +75,7 @@ async def execute(args):
     # -----------------------------------------------------------------------
     timestamps['main_end_ms'] = get_timestamp_ms()
     result = dict()
+    result['request_id'] = request_id
     result['timestamps'] = timestamps
     result['post_ids'] = response['read_post']['post_ids']
     result['posts'] = response_read['posts']

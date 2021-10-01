@@ -1,4 +1,4 @@
 cluster-members: cache-membership.json
-n-workers: 1
+n-caches: 11
 policy: random # consistent round robin
 port: 7071
