@@ -69,14 +69,6 @@ async def execute(args):
                 result= True)
         response_read['posts'].append(res)
     
-    #post_timestamp = get_timestamp_ms()
-    #response_read = await invoke_action(action_name = 'read_post',
-    #    params= {
-    #        'read_post': response['read_post'],
-    #    },
-    #    blocking = True,
-    #    result=True)
-
 
     # -----------------------------------------------------------------------
     # Return results
@@ -84,7 +76,8 @@ async def execute(args):
     timestamps['main_end_ms'] = get_timestamp_ms()
     result = dict()
     result['timestamps'] = timestamps
-    result['post_id'] = response['read_post']['post_ids']
+    result['post_ids'] = response['read_post']['post_ids']
     result['posts'] = response_read['posts']
-    logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result["post_id"]}')
+    result['timeline'] = response
+    logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result["post_ids"]}')
     return result

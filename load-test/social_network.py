@@ -464,15 +464,20 @@ class SocialNetworkUser(HttpUser):
         #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground: 0 dict_keys(['post_id', 'author', 'text', 'media_ids', 'medias', 'timestamp', 'post_type'])
  
         objects = []
-        post_ids = result['post_id']
+        post_ids = result['post_ids']
+        for ps in result['posts']:
+            logger.info(ps.keys())
+            logger.info(ps['cache_status'])
+            logger.info(ps['object_access'])
+
         posts = [post  for p in result.get('posts', []) for post in p['posts']]
         for i, post in enumerate(posts):
-            logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}')
+            #logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}. post: {post.keys()}')
             objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
             medias = post['medias']
             for media in medias:
                 objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
-                logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+                #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
         trace_data['read_home_timeline_pipeline']['objects'] = objects
         trace.put(trace_data)
         return
@@ -513,15 +518,19 @@ class SocialNetworkUser(HttpUser):
 
  
         objects = []
-        post_ids = result['post_id']
+        post_ids = result['post_ids']
+        for ps in result['posts']:
+            logger.info(ps.keys())
+            logger.info(ps['cache_status'])
+            logger.info(ps['object_access'])
         posts = [post  for p in result.get('posts', []) for post in p['posts']]
         for i, post in enumerate(posts):
-            logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}')
+            #logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}, post: {post.keys()}')
             objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
             medias = post['medias']
             for media in medias:
                 objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
-                logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+                #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
         trace_data[action_name]['objects'] = objects
         trace.put(trace_data)
         return
@@ -862,10 +871,10 @@ def main(run_locust_test=True):
         gevent.spawn(stats_printer(env.stats))
 
         # start the test
-        env.runner.start(user_count=16, spawn_rate=5)
+        env.runner.start(user_count=2, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(1200, lambda: env.runner.quit())
+        gevent.spawn_later(20, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()
