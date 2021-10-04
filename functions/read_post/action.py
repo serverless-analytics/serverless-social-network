@@ -50,23 +50,25 @@ def execute(args, worker=None):
     object_access = []
     for post_id in post_ids:
         miss = 'n'
+        evicted = []
         post = lru_cache.get(post_id)
         if post == -1: 
             miss = 'y'
             post = post_collection.find_one(filter={'post_id': post_id})
-            lru_cache.put(post_id, post)
-        object_access.append({'oid': post_id , 'miss': miss})
+            evicted = lru_cache.put(post_id, post)
+        object_access.append({'oid': post_id , 'miss': miss, 'evicted': evicted})
 
         medias = list()
         for media_id in post['media_ids']:
             miss = 'n'
+            evicted = []
             media = lru_cache.get(media_id)
             if media == -1:
                 miss = 'y'
                 media = media_collection.find_one(filter={'media_id': media_id})
-                lru_cache.put(media_id, media)
+                evicted = lru_cache.put(media_id, media)
             media.pop('_id', None)
-            object_access.append({'oid': media_id , 'miss': miss})
+            object_access.append({'oid': media_id , 'miss': miss, 'evicted': evicted})
             medias.append(media)
         post['medias'] = medias
 

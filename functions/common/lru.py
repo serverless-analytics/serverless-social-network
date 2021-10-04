@@ -33,15 +33,17 @@ class LruCache:
         if not self.first_eviction:
             self.first_eviction = get_timestamp_ms()
 
+        evicted = []
         while freed < size:
             key, value = self.cache.popitem(last = False)
             obj_size = asizeof.asizeof(value)
             freed += obj_size
+            evicted.append(key)
             #with open(f'{self.name}.cache.log', 'a') as fd:
             #    fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
             #logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
             if len(self.cache) == 0: return self.capacity
-        return freed
+        return freed, evicted
         
 
     def put(self, key, value):
@@ -53,8 +55,9 @@ class LruCache:
         self.miss_byte_count += size
         self.miss_count += 1
 
+        evicted = []
         if self.available < size:
-            freed = self.evict(size - self.available)
+            freed, evicted = self.evict(size - self.available)
             if freed < (size - self.available): 
                 logging.warning(f'LRUCache: cannot cache {key}, unable to free {size - self.available}')
                 return
@@ -69,6 +72,8 @@ class LruCache:
         assert((self.available >= 0) and (self.available <= self.capacity)) 
         #with open(f'{self.name}.cache.log', 'a') as fd:
         #    fd.write(f'lru,put,{key},NA,{size},{self.available},{self.capacity}\n')
+        return evicted
+
 
 
     def get(self, key):
