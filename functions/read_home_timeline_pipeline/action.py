@@ -6,7 +6,7 @@ import logging
 import aiohttp
 import azure.functions as func
 from requests.models import Response
-
+import ast
 
 from common.utils import get_timestamp_ms, invoke_action
 
