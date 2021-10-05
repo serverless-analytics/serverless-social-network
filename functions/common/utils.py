@@ -9,6 +9,7 @@ import aiohttp
 import requests
 from cloudant.client import CouchDB
 from PIL import Image
+import ast
 
 from common.config import (ACCESS_KEY, APIHOST, AUTH_KEY, BUCKET, DB_HOST,
         DB_PASSWORD, DB_PORT, DB_PROTOCOL, DB_USERNAME, ENDPOINT,
@@ -134,11 +135,12 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                              json=params,
                              params=url_params) as response: 
                              #auth=(USER_PASS[0], USER_PASS[1]), verify=False) as response:
+            data = (await response.text())
             try:
-                data = json.load(await response.text())
+                ret = json.load(data)
             except:
-                data = await response.text()
-                logging.info(f'data is {data}')
+                ret = ast.literal_eval(data)
+            logging.info(f'ret')
             return data
             #if result:
             #    return json.loads(await response.text())
