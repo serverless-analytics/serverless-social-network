@@ -138,6 +138,7 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                 data = json.load(await response.text())
             except:
                 data = await response.text()
+                logging.info(f'data is {data}')
             return data
             #if result:
             #    return json.loads(await response.text())
