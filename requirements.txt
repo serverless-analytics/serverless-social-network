@@ -36,3 +36,5 @@ numpy
 pandas
 colorlog
 pympler
+ast
+colorama
