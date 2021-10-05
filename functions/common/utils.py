@@ -134,7 +134,11 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                              json=params,
                              params=url_params) as response: 
                              #auth=(USER_PASS[0], USER_PASS[1]), verify=False) as response:
-            return json.loads(await response.text())
+            try:
+                data = json.load(await response.text())
+            except:
+                data = await response.tex()
+            return data
             #if result:
             #    return json.loads(await response.text())
             #else:
