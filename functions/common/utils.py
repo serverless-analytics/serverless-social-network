@@ -140,7 +140,7 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                 ret = json.load(data)
             except:
                 ret = ast.literal_eval(data)
-            logging.info(f'ret')
+            logging.info(f'{ret}')
             return data
             #if result:
             #    return json.loads(await response.text())
