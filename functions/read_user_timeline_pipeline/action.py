@@ -50,7 +50,7 @@ async def execute(args):
     
     if isinstance(response, str):
         try:
-            response = json.loads(resonse)
+            response = json.loads(response)
         except:
             response = ast.literal_eval(response)
 
