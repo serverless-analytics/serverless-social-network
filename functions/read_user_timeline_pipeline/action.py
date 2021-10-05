@@ -47,6 +47,13 @@ async def execute(args):
         blocking = True,
         poll_interval = 0.1,
         result = True)
+    
+    if isinstance(response, str):
+        try:
+            response = json.loads(resonse)
+        except:
+            response = ast.literal_eval(response)
+
 
     # make this one parallel instead of one post per post id 
     post_timestamp = get_timestamp_ms()
