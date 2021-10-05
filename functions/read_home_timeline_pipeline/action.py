@@ -6,7 +6,7 @@ import logging
 import aiohttp
 import azure.functions as func
 from requests.models import Response
-
+import json
 
 from common.utils import get_timestamp_ms, invoke_action
 
@@ -46,6 +46,12 @@ async def execute(args):
         },
         blocking = True,
         result = True)
+    
+    if isinstance(response, str):
+        try:
+            response = json.loads(resonse)
+        except:
+            response = ast.literal_eval(response)
 
 
     # make this one parallel instead of one post per post id 
