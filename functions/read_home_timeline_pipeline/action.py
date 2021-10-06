@@ -25,12 +25,14 @@ async def execute(args):
     }
 
     timestamps['main_start_ms'] = get_timestamp_ms()
-    request_id = args.get('request_id', -1)
     params = args.get('read_home_timeline', args)
+    
+    request_id = args.get('request_id', -1)
     user_id = params['user_id']
     start = params['start']
     stop = params['stop']
     dbs = params['dbs']
+    
     result = dict()
     # -----------------------------------------------------------------------
     # Action execution
