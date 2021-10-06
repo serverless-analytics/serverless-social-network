@@ -88,6 +88,7 @@ def execute(args, worker=None):
     except Exception as ex:
         loggin.error(f'Exception: read request failed for {post_ids}')
         result['exception'] = type(ex).__name__
+        raise NameError('Lets raise an exception for now')
 
     # -----------------------------------------------------------------------
     # Return results
