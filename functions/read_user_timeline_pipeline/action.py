@@ -32,6 +32,7 @@ async def execute(args):
     start = params['start']
     stop = params['stop']
     dbs = params['dbs']
+    result = dict()
 
     # -----------------------------------------------------------------------
     # Action execution
@@ -51,6 +52,7 @@ async def execute(args):
             result = True)
         response = json.loads(response)
         result['post_ids'] = response['read_post']['post_ids']
+        result['timeline'] = response
     
 
         # make this one parallel instead of one post per post id 
@@ -73,6 +75,7 @@ async def execute(args):
                     result= True)
             read_posts = json.loads(res)
             response_read['posts'].append(read_posts)
+        result['posts'] = response_read['posts']
 
 
     except Exception as ex:
@@ -82,10 +85,7 @@ async def execute(args):
     # Return results
     # -----------------------------------------------------------------------
     timestamps['main_end_ms'] = get_timestamp_ms()
-    result = dict()
     result['request_id'] = request_id
     result['timestamps'] = timestamps
-    result['posts'] = response_read['posts']
-    result['timeline'] = response
     logging.warning(f'read_user_timeline_pipeline: user_id={user_id}, result is {result["post_ids"]}')
     return result
