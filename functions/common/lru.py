@@ -5,6 +5,7 @@ import logging
 from common.utils import get_timestamp_ms
 
 
+del OrderedDict.__del__
 
 class LruCache:
 
