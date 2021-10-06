@@ -42,6 +42,7 @@ class LruCache:
             #with open(f'{self.name}.cache.log', 'a') as fd:
             #    fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
             #logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
+            del value
             if len(self.cache) == 0: return self.capacity
         return freed, evicted
         
