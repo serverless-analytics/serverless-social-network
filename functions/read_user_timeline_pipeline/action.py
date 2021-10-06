@@ -9,7 +9,7 @@ from requests.models import Response
 
 from common.utils import get_timestamp_ms, invoke_action
 import ast
-
+import json
 
 
 async def execute(args):
@@ -36,47 +36,48 @@ async def execute(args):
     # -----------------------------------------------------------------------
     # Action execution
     # -----------------------------------------------------------------------
-    response = await invoke_action(action_name = 'read_user_timeline',
-        params = {
-            'read_user_timeline': {
-                'user_id': user_id,
-                'start': start,
-                'stop': stop,
-                'dbs': dbs
-            }
-        }, # locality=userid, 
-        blocking = True,
-        poll_interval = 0.1,
-        result = True)
+    try: 
+        response = await invoke_action(action_name = 'read_user_timeline',
+            params = {
+                'read_user_timeline': {
+                    'user_id': user_id,
+                    'start': start,
+                    'stop': stop,
+                    'dbs': dbs
+                }
+            }, # locality=userid, 
+            blocking = True,
+            poll_interval = 0.1,
+            result = True)
+        response = json.loads(response)
+        result['post_ids'] = response['read_post']['post_ids']
     
-    if isinstance(response, str):
-        try:
-            response = json.loads(response)
-        except:
-            response = ast.literal_eval(response)
+
+        # make this one parallel instead of one post per post id 
+        post_timestamp = get_timestamp_ms()
+        post_ids = response['read_post']['post_ids'] 
+        response_read = {'posts': []}
+        for post_id in post_ids:
+            res = await invoke_action(action_name = 'read_post',
+                    params= {
+                        'read_post': {
+                            'user_id': user_id,
+                            'post_ids': [post_id],
+                            'timestamp': post_timestamp,
+                            'dbs': dbs
+                            }, #locality = postid, 3-->4 
+                        },
+                    locality = post_id,
+                    blocking = True,
+                    poll_interval = 0.1,
+                    result= True)
+            read_posts = json.loads(res)
+            response_read['posts'].append(read_posts)
 
 
-    # make this one parallel instead of one post per post id 
-    post_timestamp = get_timestamp_ms()
-    post_ids = response['read_post']['post_ids'] 
-    response_read = {'posts': []}
-    for post_id in post_ids:
-        res = await invoke_action(action_name = 'read_post',
-                params= {
-                    'read_post': {
-                        'user_id': user_id,
-                        'post_ids': [post_id],
-                        'timestamp': post_timestamp,
-                        'dbs': dbs
-                        }, #locality = postid, 3-->4 
-                    },
-                locality = post_id,
-                blocking = True,
-                poll_interval = 0.1,
-                result= True)
-        response_read['posts'].append(res)
-
-
+    except Exception as ex:
+        result['exception'] = type(ex).__name__
+    
     # -----------------------------------------------------------------------
     # Return results
     # -----------------------------------------------------------------------
@@ -84,7 +85,6 @@ async def execute(args):
     result = dict()
     result['request_id'] = request_id
     result['timestamps'] = timestamps
-    result['post_ids'] = response['read_post']['post_ids']
     result['posts'] = response_read['posts']
     result['timeline'] = response
     logging.warning(f'read_user_timeline_pipeline: user_id={user_id}, result is {result["post_ids"]}')

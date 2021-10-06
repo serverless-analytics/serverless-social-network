@@ -136,12 +136,7 @@ async def invoke_action(action_name, params, locality = None, blocking=False, re
                              params=url_params) as response: 
                              #auth=(USER_PASS[0], USER_PASS[1]), verify=False) as response:
             data = (await response.text())
-            try:
-                ret = json.load(data)
-            except:
-                ret = ast.literal_eval(data)
-            logging.info(f'{ret}')
-            return data
+            return ret
             #if result:
             #    return json.loads(await response.text())
             #else:
