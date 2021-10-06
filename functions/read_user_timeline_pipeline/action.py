@@ -78,6 +78,7 @@ async def execute(args):
         logging.warning(f'read_user_timeline_pipeline: user_id={user_id}, result is {result["post_ids"]}')
 
     except Exception as ex:
+        logging.error(f'Exception read_user_timeline_pipeline failed, error: {type(ex).__name__}')
         result['exception'] = type(ex).__name__
     
     # -----------------------------------------------------------------------

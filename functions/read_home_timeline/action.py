@@ -24,44 +24,40 @@ def execute(args):
     stop = params['stop']
     dbs = params['dbs']
 
+    result = dict()
+    post_ids = list()
     # -----------------------------------------------------------------------
     # Action execution
     # -----------------------------------------------------------------------
-    mongodb_ip_addr = dbs['home_timeline_mongodb']['ip_addr']
-    mongodb_port = dbs['home_timeline_mongodb']['port']
-    if mongo_client is None:
-        mongo_client = MongoClient(mongodb_ip_addr, mongodb_port)
-
-    home_timeline_db = mongo_client['home_timeline']
-    home_timeline_collection = home_timeline_db['home_timeline']
-
-
-    #for x in home_timeline_collection.find():
-    #    logging.critical(f'\t home_timeline_collection contains {x}')
-
-
-    home_timeline = home_timeline_collection.find_one(
-        filter={'user_id': user_id})
-    post_ids = list()
-    if home_timeline is not None:
-        for post in home_timeline['posts']:
-            post_ids.append(post['post_id'])
-        #logging.critical(f'\t read_home_timeline_collection for {user_id} is {home_timeline}, post ids: {post_ids}, start: {start}, stop: {stop}')
-        if 0 <= start and start < stop and len(post_ids) >= stop:
-            post_ids = post_ids[start:stop]
-            
+    try:
+        mongodb_ip_addr = dbs['home_timeline_mongodb']['ip_addr']
+        mongodb_port = dbs['home_timeline_mongodb']['port']
+        if mongo_client is None:
+            mongo_client = MongoClient(mongodb_ip_addr, mongodb_port)
     
-    #logging.critical(f'\t read_home_timeline_collection for {user_id} is {home_timeline}, post ids: {post_ids}, start: {start}, stop: {stop}')
+        home_timeline_db = mongo_client['home_timeline']
+        home_timeline_collection = home_timeline_db['home_timeline']
+    
+        home_timeline = home_timeline_collection.find_one(
+            filter={'user_id': user_id})
+        if home_timeline is not None:
+            for post in home_timeline['posts']:
+                post_ids.append(post['post_id'])
+            if 0 <= start and start < stop and len(post_ids) >= stop:
+                post_ids = post_ids[start:stop]
+            
+    except Exception as ex:
+        logging.error(f'Exception read_home_timeline failed, error: {type(ex).__name__}')
+        result['exception'] = type(ex).__name__
 
     # -----------------------------------------------------------------------
     # Return results
     # -----------------------------------------------------------------------
     timestamps['main_end_ms'] = get_timestamp_ms()
-    result = dict()
     result['timestamps'] = timestamps
     result['read_post'] = {
         'post_ids': post_ids,
         'dbs': dbs
     }
-    logging.warning(f'read_home_timeline: user_id={user_id}, result is {result}')
+    logging.warning(f'read_home_timeline: user_id={user_id}, post_ids is {post_ids}')
     return result
