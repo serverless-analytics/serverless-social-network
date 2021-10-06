@@ -76,6 +76,7 @@ async def execute(args):
             read_posts = json.loads(res)
             response_read['posts'].append(read_posts)
         result['posts'] = response_read['posts']
+        logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result["post_ids"]}')
 
     except Exception as ex:
         result['exception'] = type(ex).__name__
@@ -86,5 +87,4 @@ async def execute(args):
     timestamps['main_end_ms'] = get_timestamp_ms()
     result['request_id'] = request_id
     result['timestamps'] = timestamps
-    logging.warning(f'read_home_timeline_pipeline: user_id {user_id}, result is {result["post_ids"]}')
     return result
