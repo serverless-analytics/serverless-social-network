@@ -61,7 +61,7 @@ def execute(args, worker=None):
             if post == -1: 
                 miss = 'y'
                 post = post_collection.find_one(filter={'post_id': post_id})
-                evicted = lru_cache.put(post_id, post)
+                #evicted = lru_cache.put(post_id, post)
             object_access.append({'oid': post_id , 'miss': miss, 'evicted': evicted, 'name': lru_cache.name})
     
             medias = list()
