@@ -85,7 +85,7 @@ def execute(args, worker=None):
         result['posts'] = posts
         result['object_access'] = object_access
         result['cache_status'] = lru_cache.get_status()
-        result['cache_status']['mem_usuage'] = asizeof.asizeof(lru_cache) 
+        #result['cache_status']['mem_usuage'] = asizeof.asizeof(lru_cache) 
 
     except Exception as ex:
         loggin.error(f'Exception: read request failed for {post_ids}')
