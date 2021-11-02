@@ -1,5 +1,6 @@
 import logging
 from pymongo import MongoClient
+from pympler import asizeof
 from common.utils import get_timestamp_ms
 from common.lru import LruCache
 from common.config import CACHE_SIZE 
@@ -54,8 +55,14 @@ def execute(args, worker=None):
         if post == -1: 
             miss = 'y'
             post = post_collection.find_one(filter={'post_id': post_id})
-            lru_cache.put(post_id, post)
+            post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')
+            logging.info(post)
+            lru_cache.put(key = post_id, value = post, size = asizeof.asizeof(post))
+        else:
+            post = post.get('value', None)
         object_access.append({'oid': post_id , 'miss': miss})
+        
+        
 
         medias = list()
         for media_id in post['media_ids']:
@@ -64,14 +71,17 @@ def execute(args, worker=None):
             if media == -1:
                 miss = 'y'
                 media = media_collection.find_one(filter={'media_id': media_id})
-                lru_cache.put(media_id, media)
-            media.pop('_id', None)
+                media.pop('_id', None)
+                lru_cache.put(media_id, value = media['media_content'], size= media['media_size'])
+            else:
+                media['media_content'] = media['value']
+                media['media_size'] = media['size']
+
             object_access.append({'oid': media_id , 'miss': miss})
-            medias.append(media)
+            medias.append({'id': media_id, 'content': media['media_content'], 'size': media['media_size']})
         post['medias'] = medias
 
-        post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')
-        posts.append(post)
+        posts.append({'id': post_id, 'text': post['text'], 'medias': medias})
 
     # -----------------------------------------------------------------------
     # Return results

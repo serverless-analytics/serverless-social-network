@@ -1,4 +1,6 @@
-cluster-members: cache-membership.json
-n-caches: 11
-policy: random # consistent round robin
-port: 7071
+cluster:
+        mode: remote # possible values (local or remote)
+        membership: cache-membership.json # a file with the list of workers
+        n-caches: 24
+        
+

@@ -23,7 +23,7 @@ from locust.env import Environment
 from locust.log import setup_logging
 from locust.stats import stats_printer#, write_csv_files
 from utils.action import (create_action, create_sequence, invoke_action,
-                          update_action_limits)
+                          update_action_limits, zipf)
 from utils.activation import get_activations
 from utils.config import (ACCESS_KEY, APIHOST, AUTH_KEY, BUCKET, NAMESPACE,
                           SECRET_KEY, USER_PASS)
@@ -37,6 +37,9 @@ import json
 import ast
 import itertools
 import math
+import threading
+from queue import Queue
+from replay import Replay
 
 # -----------------------------------------------------------------------
 # Global variables
@@ -47,6 +50,35 @@ social_graph_client = None
 user_timeline_client = None
 home_timeline_client = None
 dbs = None
+transactions = None
+
+trace = Queue()
+
+
+
+'''
+def zipf(n_interactions, s, n_users):
+    def f(N, k, s):
+        return (1/math.pow(k, s))/sigma
+
+    users = list(range(0, n_users))
+    random.shuffle(users) # assign rank to users randomly
+
+    weights = [0]*n_users
+    sigma = sum([1/math.pow(n, s) for n in range(1, n_users + 1)])
+    for i, user in enumerate(users):
+        weights[i] = f(N=n_users, k = i + 1, s=s)
+
+    transactions = random.choices(users, weights = weights, k = n_interactions)
+    with open('/home/mania/serverless-social-network-multithreaded/functions/results/zipfusers1.2.locust100.512M/users', 'w') as fd:
+        fd.write(str(transactions))
+
+    trans = Queue()
+    for t in transactions: trans.put(t)
+    return trans
+'''
+
+
 
 
 def get_mongodb_port_by_container_name(container_name):
@@ -58,12 +90,12 @@ def get_mongodb_port_by_container_name(container_name):
 
 
 def init_logger():
-    global logger
     log_file_path = Path(__file__).parent.absolute() / \
         'logs' / (Path(__file__).stem + '.log')
     logger = get_logger(log_file_path=log_file_path,
                         logger_name=Path(__file__).stem)
     logger.info('logger initialization completed')
+    return logger
 
 
 def init_configs():
@@ -130,7 +162,7 @@ def create_actions_sequences():
                     action_list=['read_user_timeline', 'read_post'])
 
 
-def init_mongodb(drop_all_dbs=False, except_social_graph=True):
+def init_mongodb(args):
     global logger
     global post_storage_client
     global social_graph_client
@@ -139,8 +171,9 @@ def init_mongodb(drop_all_dbs=False, except_social_graph=True):
 
     logger.info('init mongodb')
     #host_ip_addr = socket.gethostname() + '.ece.cornell.edu'
-    host_ip_addr = socket.gethostname() # Mania: this should be changed to Rodrigo's address 
+    #host_ip_addr = socket.gethostname() # Mania: this should be changed to Rodrigo's address 
     #host_ip_addr = "rfonseca-dask.westus2.cloudapp.azure.com"
+    host_ip_addr = args.mongo_client
 
     post_storage_mongodb_ip_addr = host_ip_addr
     post_storage_mongodb_port = get_mongodb_port_by_container_name(
@@ -166,6 +199,7 @@ def init_mongodb(drop_all_dbs=False, except_social_graph=True):
     home_timeline_client = MongoClient(
         home_timeline_mongodb_ip_addr, home_timeline_mongodb_port)
 
+    '''
     if drop_all_dbs:
         post_storage_client.drop_database('post')
         post_storage_client.drop_database('media')
@@ -174,7 +208,7 @@ def init_mongodb(drop_all_dbs=False, except_social_graph=True):
         social_graph_client.drop_database('user')
         user_timeline_client.drop_database('user_timeline')
         home_timeline_client.drop_database('home_timeline')
-
+    '''
     dbs = {
         'post_storage_mongodb': {
             'ip_addr': post_storage_mongodb_ip_addr,
@@ -265,6 +299,45 @@ def init_social_graph(social_graph_path):
         follow(user_id=edge[1], followee_id=edge[0])
     logger.info('finish uploading social graph')
 
+def init_social_graph_manually():
+    user_db = social_graph_client['user']
+    user_collection = user_db['user']
+    user_collection.create_index(
+        [('user_id', pymongo.ASCENDING)], name='user_id', unique=True)
+
+    social_graph_db = social_graph_client['social_graph']
+    social_graph_collection = social_graph_db['social_graph']
+    social_graph_collection.create_index([('user_id', pymongo.ASCENDING)],
+                                         name='user_id', unique=True)
+
+    def register(first_name, last_name, username, password, user_id=None):
+        if user_id is None:
+            user_id = random.getrandbits(64)
+        document = {
+            'first_name': first_name,
+            'last_name': last_name,
+            'username': username,
+            'password': password,
+            'user_id': user_id
+        }
+        user_collection.insert_one(document)
+
+    def follow(user_id, followee_id):
+        social_graph_collection.find_one_and_update(filter={'user_id': user_id},
+                                                    update={
+                                                        '$push': {'followees': followee_id}},
+                                                    upsert=True)
+
+    for user_id in range(1, 10):
+        register(first_name='first_name_' + str(user_id),
+                 last_name='last_name_' + str(user_id),
+                 username='username_' + str(user_id),
+                 password='password_' + str(user_id),
+                 user_id=user_id)
+    follow(4, 1)
+    follow(5, 1)
+    return
+
 
 
 def load_image_sizes():
@@ -282,38 +355,9 @@ def load_image_sizes():
 
 
 
-import threading
-from queue import Queue
 
 
-def zipf(n_interactions, s, n_users):
-    def f(N, k, s):
-        return (1/math.pow(k, s))/sigma
 
-    users = list(range(0, n_users))
-    random.shuffle(users) # assign rank to users randomly
-
-    weights = [0]*n_users
-    sigma = sum([1/math.pow(n, s) for n in range(1, n_users + 1)])
-    for i, user in enumerate(users):
-        weights[i] = f(N=n_users, k = i + 1, s=s)
-
-    transactions = random.choices(users, weights = weights, k = n_interactions)
-    with open('/home/mania/serverless-social-network-multithreaded/functions/results/zipfusers1.2.locust100.512M/users', 'w') as fd:
-        fd.write(str(transactions))
-
-    trans = Queue()
-    for t in transactions: trans.put(t)
-    return trans
-
-
-n_users = 63392
-n_interactions = 1000000
-s = 1.2
-transactions = zipf(n_interactions = n_interactions, s = s, n_users=n_users)
-
-
-trace = Queue()
 
 
 class SocialNetworkUser(HttpUser):
@@ -565,7 +609,7 @@ class SocialNetworkUser(HttpUser):
 
 
 _medias = set()
-concurrent_req = threading.Semaphore(16)        
+concurrent_req = threading.Semaphore(50)        
 
 def replay_compose_post(request):
     global _medias
@@ -642,13 +686,55 @@ def replay_read_home_timeline(request):
             'dbs': dbs
         }
     }
-    res = invoke_action(action_name='read_home_timeline_pipeline',
+    result = invoke_action(action_name='read_home_timeline_pipeline',
             params=action_params, blocking=True, result=True)
 
+    if isinstance(result, str):
+        print(f'read_home_timeline: req id {req}')
+        req += 1
+        concurrent_req.release()
+        return
+        
+    #try:
+    #    result = json.loads(resp.text)
+    #except:
+    #    result = ast.literal_eval(resp.text)
+
+    #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground:  543497539150576606, dict_keys(['media_id', 'media_type', 'media_size', 'media_content', 'post_id', 'author', 'timestamp', 'post_type'])
+    #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground: 0 dict_keys(['post_id', 'author', 'text', 'media_ids', 'medias', 'timestamp', 'post_type'])
+
+    trace_data = request
+
+    objects = []
+    cache_stats = []
+    object_access = []
+    logger.info(f'request id is {result["request_id"]}')
+    timestamps = result['timestamps']
+    post_ids = result['post_ids']
+    for ps in result['posts']:
+        cache_stats.append(ps['cache_status'])
+        object_access.append(ps['object_access'])
+        logger.info(ps.keys())
+        logger.info(ps['cache_status'])
+        logger.info(ps['object_access'])
+
+    posts = [post  for p in result.get('posts', []) for post in p['posts']]
+    for i, post in enumerate(posts):
+        #logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}. post: {post.keys()}')
+        objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
+        medias = post['medias']
+        for media in medias:
+            objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
+            #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+    trace_data['objects'] = objects
+    trace_data['cache_status'] = cache_stats
+    trace_data['object_access'] = object_access
+    trace_data['timestamps'] = timestamps
+    replay_trace_queue.put(trace_data)
     print(f'read_home_timeline: req id {req}')
     req += 1
     concurrent_req.release()
-
+    return
 
 def replay_read_user_timeline(request):
     global dbs
@@ -668,8 +754,50 @@ def replay_read_user_timeline(request):
             'dbs': dbs
         }
     }
-    res = invoke_action(action_name='read_user_timeline_pipeline',
+    result = invoke_action(action_name='read_user_timeline_pipeline',
             params=action_params, blocking=True, result=True)
+    
+    if isinstance(result, str):
+        print(f'read_home_timeline: req id {req}')
+        req += 1
+        concurrent_req.release()
+        return
+    #try:
+    #    result = json.loads(resp.text)
+    #except:
+    #    result = ast.literal_eval(resp.text)
+
+    #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground:  543497539150576606, dict_keys(['media_id', 'media_type', 'media_size', 'media_content', 'post_id', 'author', 'timestamp', 'post_type'])
+    #[2021-09-30 08:13:08,121] rfonseca-dask/CRITICAL/playground: 0 dict_keys(['post_id', 'author', 'text', 'media_ids', 'medias', 'timestamp', 'post_type'])
+ 
+    trace_data = request
+    
+    objects = []
+    cache_stats = []
+    object_access = []
+    logger.info(f'request id is {result["request_id"]}')
+    timestamps = result['timestamps']
+    post_ids = result['post_ids']
+    for ps in result['posts']:
+        cache_stats.append(ps['cache_status'])
+        object_access.append(ps['object_access'])
+        logger.info(ps.keys())
+        logger.info(ps['cache_status'])
+        logger.info(ps['object_access'])
+
+    posts = [post  for p in result.get('posts', []) for post in p['posts']]
+    for i, post in enumerate(posts):
+        #logger.critical(f'oid: {post["post_id"]}, type: text, size: {len(post["text"])}. post: {post.keys()}')
+        objects.append({'oid': post['post_id'], 'type': 'text', 'size': len(post['text']), 'author': post['author']['user_id']})
+        medias = post['medias']
+        for media in medias:
+            objects.append({'oid': media['media_id'], 'type': media['media_type'], 'size': media['media_size'], 'author': media['author']['user_id']})
+            #logger.critical(f'oid: {media["media_id"]}, type: {media["media_type"]}, size: {media["media_size"]}, author: {media["author"]["user_id"]}')
+    trace_data['objects'] = objects
+    trace_data['cache_status'] = cache_stats
+    trace_data['object_access'] = object_access
+    trace_data['timestamps'] = timestamps
+    replay_trace_queue.put(trace_data)
     print(f'read_user_timeline: req id {req}')
     req += 1
     concurrent_req.release()
@@ -750,9 +878,6 @@ def compose_post(_id=None, n_users=100):
     }
     res = invoke_action(action_name='compose_post',
             params=action_params, blocking=True, result=True)
-
-
-
     return res
 
 
@@ -760,14 +885,19 @@ def compose_post(_id=None, n_users=100):
 
 sizes = load_image_sizes() 
 
-def main(run_locust_test=True):
+def run(args):
     global logger
     global dbs
     global trace
+    global transactions 
+    global trace 
+    #trace = Queue()
+    
+    run_locust_test=False
     # -----------------------------------------------------------------------
     # Init logger & configs
     # -----------------------------------------------------------------------
-    init_logger()
+    logger = init_logger()
     init_configs()
 
     # -----------------------------------------------------------------------
@@ -783,104 +913,38 @@ def main(run_locust_test=True):
     # -----------------------------------------------------------------------
     # MongoDB
     # -----------------------------------------------------------------------
-    drop_all_dbs=False
-    except_social_graph=True
-    dbs = init_mongodb(drop_all_dbs=drop_all_dbs, except_social_graph=except_social_graph)
-    # print('dbs: {}\n'.format(dbs))
+    dbs = init_mongodb(args)
+    print('dbs: {}\n'.format(dbs))
 
-    # -----------------------------------------------------------------------
-    # Init social graph
-    # -----------------------------------------------------------------------
-    if run_locust_test:
-        if (drop_all_dbs) and (not except_social_graph):
-            init_social_graph(social_graph_path=Path(__file__).parent /
-                          'datasets' / 'social_graph' / 'socfb-OR.mtx')
-    else:
-        user_db = social_graph_client['user']
-        user_collection = user_db['user']
-        user_collection.create_index(
-            [('user_id', pymongo.ASCENDING)], name='user_id', unique=True)
-
-        social_graph_db = social_graph_client['social_graph']
-        social_graph_collection = social_graph_db['social_graph']
-        social_graph_collection.create_index([('user_id', pymongo.ASCENDING)],
-                                             name='user_id', unique=True)
-
-        def register(first_name, last_name, username, password, user_id=None):
-            if user_id is None:
-                user_id = random.getrandbits(64)
-            document = {
-                'first_name': first_name,
-                'last_name': last_name,
-                'username': username,
-                'password': password,
-                'user_id': user_id
-            }
-            user_collection.insert_one(document)
-
-        def follow(user_id, followee_id):
-            social_graph_collection.find_one_and_update(filter={'user_id': user_id},
-                                                        update={
-                                                            '$push': {'followees': followee_id}},
-                                                        upsert=True)
-
-        for user_id in range(1, 10):
-            register(first_name='first_name_' + str(user_id),
-                     last_name='last_name_' + str(user_id),
-                     username='username_' + str(user_id),
-                     password='password_' + str(user_id),
-                     user_id=user_id)
-        follow(4, 1)
-        follow(5, 1)
 
     #-----------------------------------------------------------------------
     # preload database
     #-----------------------------------------------------------------------
-
-    # -----------------------------------------------------------------------
-    # Invoke actions
-    # -----------------------------------------------------------------------
-    
-    load_database = False
-    replay_trace = False
-    if load_database:
-        n_users = 63392
-        for i in range(0, n_users):
-            for p in range(0, 20):
-                logger.info(f'user {i}, post {p} ')
-                compose_post(i, n_users)
-                break
-            break
-    elif replay_trace:
-        threads = []
-        with open('trace.json', 'r') as fd:
-            traces = json.load(fd)
-            for tr in traces:
-                concurrent_req.acquire()
-                if 'compose_post' in tr:
-                    t = threading.Thread(target = replay_compose_post , args = (tr['compose_post'],))
-                    t.start()
-                    threads.append(t)
-                    #replay_compose_post(tr['compose_post'])
-                elif 'read_home_timeline_pipeline' in tr:
-                    t = threading.Thread(target = replay_read_home_timeline, args = (tr['read_home_timeline_pipeline'],))
-                    t.start()
-                    threads.append(t)
-                    #replay_read_home_timeline(tr['read_home_timeline_pipeline'])
-                elif 'read_user_timeline_pipeline' in tr:
-                    t = threading.Thread(target = replay_read_user_timeline , args = (tr['read_user_timeline_pipeline'],))
-                    t.start()
-                    threads.append(t)
-                    #replay_read_user_timeline(tr['read_user_timeline_pipeline'])
-                #break
-
-            for t in threads:
-                t.join()
+    if args.exp_type == 'preload-db':
+        if args.exp.load_social_graph == 'file':
+            init_social_graph(social_graph_path=args.exp.social_graph)
+        elif args.exp.load_social_graph == 'manual':
+            init_social_graph_manually()
 
 
-    elif run_locust_test:
+        if args.exp.mode == 'exhustive':
+            n_users = args.exp.n_users
+            for i in range(0, n_users):
+                for p in range(0, args.exp.post_per_user):
+                    logger.info(f'Compose post for user {i}, post {p}')
+                    compose_post(i, n_users)
+    elif args.exp_type == 'replay': 
+        logger.info('replay trace')
+        replay = Replay(args=args, dbs = dbs, logger = logger)
+        replay.run()
+    elif args.exp_type == 'locust':
         logger.info('locust load testing starts')
 
+        n_users = 63392
+        n_interactions = 1000000
+        s = 1.2
+        transactions = zipf(n_interactions = args.exp.n_interactions, s = args.exp.s, n_users=args.exp.n_users)
+        
         setup_logging('INFO', None)
 
         #initialize_user_posts();
@@ -898,10 +962,10 @@ def main(run_locust_test=True):
         gevent.spawn(stats_printer(env.stats))
 
         # start the test
-        env.runner.start(user_count=2, spawn_rate=5)
+        env.runner.start(user_count=args.exp.parallelism, spawn_rate=5)
 
         # in 60 seconds stop the runner
-        gevent.spawn_later(20, lambda: env.runner.quit())
+        gevent.spawn_later(args.exp.duration, lambda: env.runner.quit())
 
         # wait for the greenlets
         env.runner.greenlet.join()
@@ -914,13 +978,12 @@ def main(run_locust_test=True):
             t = trace.get(block=False)
             trace.task_done()
             trace_data.append(t)
-        with open('trace.json', 'w') as fd:
+        with open(args.exp.logfile, 'w') as fd:
             json.dump(trace_data, fd)
 
-
-        csv_base_filepath = Path(
-            __file__).parent.absolute() / 'locust' / 'openwhisk'
-        write_csv_files(environment=env, base_filepath=str(csv_base_filepath))
+        #csv_base_filepath = Path(
+        #    __file__).parent.absolute() / 'locust' / 'openwhisk'
+        #write_csv_files(environment=env, base_filepath=str(csv_base_filepath))
 
         logger.info('locust load testing ended')
     else:

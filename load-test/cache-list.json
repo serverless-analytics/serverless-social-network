@@ -1,48 +1,8 @@
 {
    "CacheList": [
       {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37000",
-         "name": "http://func000000:8080/"
-      },
-      {
          "address": "http://func-rfdask.westus2.cloudapp.azure.com:37001",
          "name": "http://func000001:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37002",
-         "name": "http://func00000a:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37003",
-         "name": "http://func00000b:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37004",
-         "name": "http://func00000c:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37005",
-         "name": "http://func00000d:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37006",
-         "name": "http://func00000e:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37007",
-         "name": "http://func00000f:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37008",
-         "name": "http://func00000g:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37010",
-         "name": "http://func00000i:8080/"
-      },
-      {
-         "address": "http://func-rfdask.westus2.cloudapp.azure.com:37011",
-         "name": "http://func00000j:8080/"
       }
    ]
 }

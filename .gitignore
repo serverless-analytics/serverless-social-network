@@ -109,6 +109,7 @@ venv/
 venv37
 venv37/
 venv37/*
+venv37
 ENV/
 env.bak/
 venv.bak/

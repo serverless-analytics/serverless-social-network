@@ -1,0 +1,17 @@
+cluster:
+        mode: remote # possible values (local or remote)
+        membership: /home/mania/serverless-social-network-multithreaded/load-test/cache-membership.json # the absolute path to file with the list of workers
+        n-workers: 24
+        mem-size: 134217728
+        policy: crr
+experiment:
+        locust:
+               duration: 3600
+               n_users: 63392
+               n_interactions: 1000000
+               s: 0.9
+               trace: trace.zipf-0p9.60min.72p.json
+               logdir: /local0/social-network-logs
+
+
+

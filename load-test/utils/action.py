@@ -12,7 +12,9 @@ from .activation import get_activation_by_id
 from .config import APIHOST, AUTH_KEY, NAMESPACE, USER_PASS, WSK
 
 import logging
-
+import random
+import math
+from queue import Queue
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -87,16 +89,48 @@ def invoke_action(action_name, params, blocking=False, result=False, poll_interv
     url_params['blocking'] = str(blocking).lower()
     url_params['result'] = str(result).lower()
 
+    logging.info(f'inside the invode function for {action_name}')
     #response = requests.post(url=APIHOST + '/api/v1/namespaces/' + NAMESPACE + '/actions/' + action_name,
     response = requests.post(url=APIHOST + '/api/' + action_name,
                              json=params,
                              params=url_params,
                              auth=(USER_PASS[0], USER_PASS[1]), verify=False)
+    
+    return response.text
+    '''
     if result:
-        return json.loads(response.text)
+        try:
+            d = json.loads(response.text)
+        except:
+            d = response.text
+        return d
     else:
         activation_id = json.loads(response.text)['activationId']
         if blocking and 'reponse' not in json.loads(response.text):
             while get_activation_by_id(activation_id=activation_id) is None:
                 time.sleep(poll_interval)
         return activation_id
+    '''
+
+
+def zipf(n_interactions, s, n_users, logdir=None):
+    def f(N, k, s):
+        return (1/math.pow(k, s))/sigma
+
+    users = list(range(0, n_users))
+    random.shuffle(users) # assign rank to users randomly
+
+    weights = [0]*n_users
+    sigma = sum([1/math.pow(n, s) for n in range(1, n_users + 1)])
+    for i, user in enumerate(users):
+        weights[i] = f(N=n_users, k = i + 1, s=s)
+
+    transactions = random.choices(users, weights = weights, k = n_interactions)
+    
+    if logdir:
+        with open(f'{logdir}/zipfusers{s}', 'w') as fd:
+            fd.write(str(transactions))
+
+    trans = Queue()
+    for t in transactions: trans.put(t)
+    return trans
