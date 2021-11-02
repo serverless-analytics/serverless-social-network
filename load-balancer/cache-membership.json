@@ -1,6 +1,6 @@
 {
 	"CacheList": [
-		{"address": "http://func-rfdask.westus2.cloudapp.azure.com:37001" , "name" : "http://func000001:8080/"},
+		{"address": "http://func-rfdask.westus2.cloudapp.azure.com:37000" , "name" : "http://func000000:8080/"},
 		{"address": "http://func-rfdask.westus2.cloudapp.azure.com:37002" , "name" : "http://func00000a:8080/"},
 		{"address": "http://func-rfdask.westus2.cloudapp.azure.com:37003" , "name" : "http://func00000b:8080/"},
 		{"address": "http://func-rfdask.westus2.cloudapp.azure.com:37005" , "name" : "http://func00000d:8080/"},

@@ -6,8 +6,8 @@ cluster:
         policy: random
 experiment:
         replay:
-               trace: trace.zipf-0p9.60min.72p.json
-               logdir: /local0/social-network-logs
+               trace: /home/mania/serverless-social-network/load-test/datasets/traces/trace.zipf-0p9.60min.72p.json
+               logdir: /local0/social-network-logs/
 
 
 

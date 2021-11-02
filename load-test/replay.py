@@ -231,6 +231,7 @@ class Replay:
     
     def run(self):
         threads = []
+        print(self.args.exp.trace)
         with open(self.args.exp.trace, 'r') as fd:
             self.logger.info(f'The trace file has been loaded')
             traces = json.load(fd)

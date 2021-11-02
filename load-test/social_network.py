@@ -347,7 +347,7 @@ def load_image_sizes():
     #    data = [int(s) for s in fd.read().split('\n')[:-1]]
     #    sizes.extend(data)
     
-    image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'traces' / 'instagram.image.sizes.clean'
+    image_size_path = Path(__file__).parent.absolute() / 'datasets' / 'socnet_imagesize' / 'instagram.image.sizes.clean'
     with open(image_size_path, 'r') as fd:
         data = [int(s) for s in fd.read().split('\n')[:-1]]
         sizes.extend(data)
