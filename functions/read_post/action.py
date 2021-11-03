@@ -62,8 +62,12 @@ def execute(args, worker=None):
             if post == -1: 
                 miss = 'y'
                 post = post_collection.find_one(filter={'post_id': post_id})
-                evicted = lru_cache.put(post_id, post)
-            object_access.append({'oid': post_id , 'miss': miss, 'evicted': evicted, 'name': lru_cache.name})
+                post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')
+                evicted = lru_cache.put(key = post_id, value = post, size = asizeof.asizeof(post))
+            else:
+                post = post.get('value', None)
+            object_access.append({'oid': post_id , 'miss': miss, 
+                'evicted': evicted, 'name': lru_cache.name})
     
             medias = list()
             for media_id in post['media_ids']:
@@ -73,14 +77,18 @@ def execute(args, worker=None):
                 if media == -1:
                     miss = 'y'
                     media = media_collection.find_one(filter={'media_id': media_id})
-                    evicted = lru_cache.put(media_id, media)
-                media.pop('_id', None)
-                object_access.append({'oid': media_id , 'miss': miss, 'evicted': evicted, 'name': lru_cache.name})
-                medias.append(media)
+                    media.pop('_id', None)
+                    evicted = lru_cache.put(media_id, value = media['media_content'], size= media['media_size'])
+                else:
+                    media['media_content'] = media['value']
+                    media['media_size'] = media['size']
+                object_access.append({'oid': media_id , 'miss': miss, 
+                    'evicted': evicted, 'name': lru_cache.name})
+                medias.append({'id': media_id, 'content': media['media_content'], 'size': media['media_size']})
+                #medias.append(media)
             post['medias'] = medias
     
-            post.pop('_id', None)  # '_id': ObjectId('5fa8ade6949bf3bd67ed5aaf')
-            posts.append(post)
+            posts.append({'id': post_id, 'text': post['text'], 'medias': medias})
 
         result['posts'] = posts
         result['object_access'] = object_access

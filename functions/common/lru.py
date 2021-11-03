@@ -34,23 +34,22 @@ class LruCache:
 
         evicted = []
         while freed < size:
-            key, value = self.cache.popitem(last = False)
-            obj_size = asizeof.asizeof(value)
+            key, item = self.cache.popitem(last = False)
+            obj_size = item['size'] #asizeof.asizeof(value)
             freed += obj_size
             evicted.append(key)
             #with open(f'{self.name}.cache.log', 'a') as fd:
             #    fd.write(f'lru,evict,{key},NA,{obj_size},{self.available},{self.capacity}\n')
             #logging.warning(f'lru evic {key},NA,{obj_size}, freed: {freed}, available: {self.available}, capacity {self.capacity}, requested size: {size}')
-            del value
             if len(self.cache) == 0: return self.capacity
         return freed, evicted
         
 
-    def put(self, key, value):
+    def put(self, key, value, size):
         # FIXME: for now I assume the value of each key
         # is python built in tpye. remember to fix the
         # size calculation. 
-        size = asizeof.asizeof(value)
+        #size = asizeof.asizeof(value)
         assert(size < self.capacity)
         self.miss_byte_count += size
         self.miss_count += 1
@@ -66,7 +65,7 @@ class LruCache:
             else:
                 self.available += freed
             assert((self.available >= 0) and (self.available <= self.capacity)) 
-        self.cache[key] = value
+        self.cache[key] = {'value': value, 'size': size}
         self.cache.move_to_end(key)
         self.available -= size
         assert((self.available >= 0) and (self.available <= self.capacity)) 
@@ -85,7 +84,7 @@ class LruCache:
         self.cache.move_to_end(key)
         #with open(f'{self.name}.cache.log', 'a') as fd:
         #    fd.write(f'lru,get,{key},hit,{asizeof.asizeof(self.cache[key])},{self.available},{self.capacity}\n')
-        self.hit_byte_count = asizeof.asizeof(self.cache[key])
+        self.hit_byte_count += self.cache[key]['size'] #asizeof.asizeof(self.cache[key])
         self.hit_count += 1
         return self.cache[key]
 
