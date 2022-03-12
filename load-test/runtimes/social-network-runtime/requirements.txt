@@ -19,7 +19,7 @@ flask==1.0.2
 
 # custom packages
 minio == 5.0.10
-Pillow == 7.1.2
+Pillow == 9.0.1
 pymongo == 3.11.0
 redis == 3.5.3
 cloudant == 2.14.0
